@@ -32,6 +32,8 @@ pub mod Core {
 
   pub type Flags = u8; // This should be a u3, but we don't have the machinery to do that.
 
+  pub type Stuff = u16; // This should be u13, but we don't have the machinery to do that. It contains various flags.
+
   // This represents the 16 possible 2 input binary pure functions
   pub enum LUTSelector {
     F,
@@ -72,7 +74,7 @@ pub mod Core {
     // One source, one sink
     PopCnt(Address, Address), // This is immediate
     // Send
-    SendMessage(Address, Flags, Address, Flags)
+    SendMessage(Address, Stuff)
   }
 
   pub fn attempt_write_memory(mut chip: Chip, address: Address, value: u32) -> Result<u8, u8> {
