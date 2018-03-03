@@ -29,6 +29,8 @@ fn set_chip_masks_paused() -> [MemState; SCRATCH_SIZE] {
 
 type Address = u32; // This should be a u13, but we don't have the machinery to do that.
 
+type Flags = u8; // This should be a u3, but we don't have the machinery to do that.
+
 // This represents the 16 possible 2 input binary pure functions
 enum LUTSelector {
   F,
@@ -66,6 +68,10 @@ enum Instruction {
   ShiftOverflow(Address, Address, Address, Address),
   LUTIntermediate(Address, Address), // The second address points to a word that contains a half word aligned (address, 4 bit LUT specifier)
   LUT(Address, Address, Address, LUTSelector),
+  // One source, one sink
+  PopCnt(Address, Address), // This is immediate
+  // Send
+  SendMessage(Address, Flags, Address, Flags)
 }
 
 fn main() {
