@@ -27,6 +27,19 @@ fn set_chip_masks_paused() -> [MemState; SCRATCH_SIZE] {
   return memstate;
 }
 
+type Address = u32; // This should be a u13, but we don't have the machinery to do that.
+
+enum Instruction {
+  // 2 source, 2 sink
+  // These take 2 steps to decode
+  // First we get the intermediate form, which has 2 13 bit addresses
+  // The words there have 2 13 bit addresses packed in each of them, half-word aligned
+  DivRemIntermediate(Address, Address),
+  DivRem(Address, Address, Address, Address),
+  AddCarryIntermediate(Address, Address),
+  AddCarry(Address, Address, Address, Address),
+}
+
 fn main() {
     let mut chip: Chip = Chip {
       scratch: set_chip_mem(),
