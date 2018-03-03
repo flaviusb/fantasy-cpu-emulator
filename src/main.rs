@@ -28,7 +28,7 @@ pub mod Core {
     return memstate;
   }
 
-  pub type Address = u32; // This should be a u13, but we don't have the machinery to do that.
+  pub type Address = usize; // This should be a u13, but we don't have the machinery to do that.
 
   pub type Flags = u8; // This should be a u3, but we don't have the machinery to do that.
 
@@ -74,6 +74,16 @@ pub mod Core {
     // Send
     SendMessage(Address, Flags, Address, Flags)
   }
+
+  pub fn attempt_read_memory(chip: Chip, address: Address) -> Option<u32> {
+    if address >= SCRATCH_SIZE || chip.memstate[address] == MemState::waiting_on_channel {
+      return None
+    }
+    return Some(chip.scratch[address]);
+  }
+
+  //pub fn attempt_tick(chip: Chip) -> Chip {
+  //}
 }
 
 fn main() {
