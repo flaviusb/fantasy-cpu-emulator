@@ -75,14 +75,14 @@ pub mod Core {
     SendMessage(Address, Flags, Address, Flags)
   }
 
-  pub fn attempt_write_memory(mut chip: Chip, address: Address, value: u32) -> Option<Chip> {
+  pub fn attempt_write_memory(mut chip: Chip, address: Address, value: u32) -> Result<u8, u8> {
     if address >= SCRATCH_SIZE {
       panic!("address >= SCRATCH_SIZE: {}", address);
     } else if chip.memstate[address] == MemState::waiting_on_channel {
-      return None
+      return Err(0);
     }
     chip.scratch[address] = value;
-    return Some(chip);
+    return Ok(0);
   }
 
   pub fn attempt_read_memory(chip: Chip, address: Address) -> Option<u32> {
