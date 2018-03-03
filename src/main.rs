@@ -29,6 +29,26 @@ fn set_chip_masks_paused() -> [MemState; SCRATCH_SIZE] {
 
 type Address = u32; // This should be a u13, but we don't have the machinery to do that.
 
+// This represents the 16 possible 2 input binary pure functions
+enum LUTSelector {
+  F,
+  Nor,
+  Xq,
+  Notp,
+  MaterialNonimplication,
+  Notq,
+  Xor,
+  Nand,
+  And,
+  Xnor,
+  Q,
+  IfThen,
+  P,
+  ThenIf,
+  Or,
+  T
+}
+
 enum Instruction {
   // 2 source, 2 sink
   // These take 2 steps to decode
@@ -38,6 +58,14 @@ enum Instruction {
   DivRem(Address, Address, Address, Address),
   AddCarryIntermediate(Address, Address),
   AddCarry(Address, Address, Address, Address),
+  MulCarryIntermediate(Address, Address),
+  MulCarry(Address, Address, Address, Address),
+  SubCarryIntermediate(Address, Address),
+  SubCarry(Address, Address, Address, Address),
+  ShiftOverflowIntermediate(Address, Address),
+  ShiftOverflow(Address, Address, Address, Address),
+  LUTIntermediate(Address, Address), // The second address points to a word that contains a half word aligned (address, 4 bit LUT specifier)
+  LUT(Address, Address, Address, LUTSelector),
 }
 
 fn main() {
