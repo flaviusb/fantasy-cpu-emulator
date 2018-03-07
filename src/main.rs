@@ -55,6 +55,7 @@ pub mod Core {
   }
 
   pub enum Instruction {
+    Nop(),
     // 2 source, 2 sink
     // These take 2 steps to decode
     // First we get the intermediate form, which has 2 13 bit addresses
@@ -69,7 +70,7 @@ pub mod Core {
     SubCarry(Address, Address, Address, Address),
     ShiftOverflowIntermediate(Address, Address),
     ShiftOverflow(Address, Address, Address, Address),
-    LUTIntermediate(Address, Address), // The second address points to a word that contains a half word aligned (address, 4 bit LUT specifier)
+    LUTIntermediate(Address, Address, LUTSelector), // The second address points to a word that contains a half word aligned address. The LUTSelector comes from the instruction decoding.
     LUT(Address, Address, Address, LUTSelector),
     // One source, one sink
     PopCnt(Address, Address), // This is immediate
@@ -96,6 +97,48 @@ pub mod Core {
 
   //pub fn attempt_tick(chip: Chip) -> Chip {
   //}
+  pub fn get_lut_type(selector: u32) -> LUTSelector {
+    return match selector {
+      0  => LUTSelector::F,
+      1  => LUTSelector::Nor,
+      2  => LUTSelector::Xq,
+      3  => LUTSelector::Notp,
+      4  => LUTSelector::MaterialNonimplication,
+      5  => LUTSelector::Notq,
+      6  => LUTSelector::Xor,
+      7  => LUTSelector::Nand,
+      8  => LUTSelector::And,
+      9  => LUTSelector::Xnor,
+      10 => LUTSelector::Q,
+      11 => LUTSelector::IfThen,
+      12 => LUTSelector::P,
+      13 => LUTSelector::ThenIf,
+      14 => LUTSelector::Or,
+      15 => LUTSelector::T,
+      _  => panic!("Invalid selector.")
+    }
+  }
+  pub fn instruction_decode_partial(cell: u32) -> Instruction {
+    // 8 + 16 = 24, so we have 5 bits worth of selector
+    let selector = cell & ((2^5) - 1);
+    let left: usize  = ((cell & (((2^13) - 1) << 6)) >> 6) as usize;
+    let right: usize = ((cell & (((2^13) -1) << 19)) >> 19) as usize;
+    if selector > 23 {
+      panic!("Invalid instruction.");
+    }
+    let insn = match selector {
+      0  => Instruction::Nop(),
+      1  => Instruction::DivRemIntermediate(left, right),
+      2  => Instruction::AddCarryIntermediate(left, right),
+      3  => Instruction::MulCarryIntermediate(left, right),
+      4  => Instruction::SubCarryIntermediate(left, right),
+      5  => Instruction::ShiftOverflowIntermediate(left, right),
+      6  => Instruction::PopCnt(left, right),
+      7  => Instruction::SendMessage(left, right as u16),
+      _  => Instruction::LUTIntermediate(left, right, get_lut_type(selector - 8)),
+    };
+    return insn;
+  }
 }
 
 fn main() {
