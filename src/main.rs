@@ -47,7 +47,7 @@ pub mod Core {
     And,
     Xnor,
     Q,
-    IfThen,
+    IfThen, // Also: orn
     P,
     ThenIf,
     Or,
