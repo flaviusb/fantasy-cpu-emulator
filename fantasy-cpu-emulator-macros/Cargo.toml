@@ -4,5 +4,9 @@ version = "0.1.0"
 authors = ["Justin (:flaviusb) Marsh <justin.marsh@flaviusb.net>"]
 workspace = ".."
 
-[dependencies]
+[lib]
+proc-macro = true
 
+[dependencies]
+quote = "1.0"
+syn = "1.0"
