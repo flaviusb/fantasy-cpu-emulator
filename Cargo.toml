@@ -4,3 +4,7 @@ version = "0.1.0"
 authors = ["Justin (:flaviusb) Marsh <justin.marsh@flaviusb.net>"]
 
 [dependencies]
+fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
+
+[workspace]
+# members = ["fantasy-cpu-emulator-macros"]
