@@ -10,27 +10,24 @@ use syn::spanned::Spanned;
 use syn::{Expr, Ident, Type, Visibility};
 
 struct ChipInfo {
-  
+  name: String,
+  pipeline: Pipeline,
 }
 
-struct Section<T> {
-  level: u8,
-  name: String,
-  contents: T,
+struct Pipeline {
+}
+
+impl Parse for Pipeline {
+  fn parse(input: ParseStream) -> Result<Self> {
+    Ok(Pipeline { })
+  }
 }
 
 impl Parse for ChipInfo {
   fn parse(input: ParseStream) -> Result<Self> {
-    
-    Ok(ChipInfo {})
-  }
-}
-
-impl Parse for Section<ChipInfo> {
-  fn parse(input: ParseStream) -> Result<Self> {
     input.parse::<Token![#]>()?;
     let name = input.parse::<Ident>()?.to_string();
-    Ok(Section { level:1, name:name, contents: input.parse()? })
+    Ok(ChipInfo { name:name, pipeline: input.parse()? })
   }
 }
 
@@ -58,7 +55,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    * 
    */
 
-  let chip_info: Section<ChipInfo> = syn::parse(input).unwrap();
+  let chip_info: ChipInfo = syn::parse(input).unwrap();
   (quote! {
     1
   }).into()
