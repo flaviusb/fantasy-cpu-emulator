@@ -56,8 +56,13 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    */
 
   let chip_info: ChipInfo = syn::parse(input).unwrap();
+  let mod_name = format_ident!("{}", chip_info.name);
   (quote! {
-    1
+    mod #mod_name {
+      pub fn witness() -> u8 {
+        3
+      }
+    }
   }).into()
 }
 

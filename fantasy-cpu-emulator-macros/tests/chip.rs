@@ -7,5 +7,5 @@ fn define_blank_chip() {
     #test_potato
 
   };
-  assert_eq!(true, true);
+  assert_eq!(test_potato::witness(), 3);
 }
