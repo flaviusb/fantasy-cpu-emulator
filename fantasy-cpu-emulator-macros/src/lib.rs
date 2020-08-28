@@ -19,11 +19,18 @@ struct Section<T> {
   contents: T,
 }
 
+impl Parse for ChipInfo {
+  fn parse(input: ParseStream) -> Result<Self> {
+    
+    Ok(ChipInfo {})
+  }
+}
+
 impl Parse for Section<ChipInfo> {
   fn parse(input: ParseStream) -> Result<Self> {
     input.parse::<Token![#]>()?;
     let name = input.parse::<Ident>()?.to_string();
-    Ok(Section { level:1, name:name, contents:ChipInfo {} })
+    Ok(Section { level:1, name:name, contents: input.parse()? })
   }
 }
 
