@@ -6,6 +6,10 @@ fn define_blank_chip() {
   define_chip! {
     #test_potato
 
+    ##Pipeline
+
+    ##Instructions
+
   };
   assert_eq!(test_potato::witness(), 3);
 }

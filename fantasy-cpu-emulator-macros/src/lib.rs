@@ -12,8 +12,10 @@ use syn::{Expr, Ident, Type, Visibility};
 struct ChipInfo {
   name: String,
   pipeline: Pipeline,
+  instructions: Instructions,
 }
 
+#[derive(PartialEq,Eq)]
 struct Pipeline {
 }
 
@@ -23,11 +25,42 @@ impl Parse for Pipeline {
   }
 }
 
+#[derive(PartialEq,Eq)]
+struct Instructions {
+} 
+
+impl Parse for Instructions {
+  fn parse(input: ParseStream) -> Result<Self> {
+    Ok(Instructions { })
+  }
+}
+
 impl Parse for ChipInfo {
   fn parse(input: ParseStream) -> Result<Self> {
     input.parse::<Token![#]>()?;
     let name = input.parse::<Ident>()?.to_string();
-    Ok(ChipInfo { name:name, pipeline: input.parse()? })
+    // Get sections if they exist
+    // Sections: Pipeline, Instructions, Encoding Tables
+    let mut pipeline: Option<Pipeline> = None;
+    let mut instructions: Option<Instructions> = None;
+    while(pipeline == None || instructions == None) {
+      input.parse::<Token![#]>()?;
+      input.parse::<Token![#]>()?;
+      let section = input.parse::<Ident>()?;
+      match section.to_string().as_str() {
+        "Pipeline" => {
+          pipeline = Some(Pipeline { });
+        },
+        "Instructions" => {
+          instructions = Some(Instructions { });
+        },
+        section_name => {
+          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline or Instructions.", section_name)));
+          //return Err(input.error("Unexpected section name; expected Pipeline or Instructions."));
+        },
+      }
+    }
+    Ok(ChipInfo { name:name, pipeline: pipeline.unwrap(), instructions: instructions.unwrap() })
   }
 }
 
