@@ -10,7 +10,9 @@ fn define_blank_chip() {
 
     ##Instructions
 
-    Add, "Add things."
+    Add,     "Add %a %b %c", 1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10], "Add things."
+    Addiu, "Addiu %a %b %c", 1 0 1 0 0 0 _ _ a:u8 b:[mem; 10] c:[mem; 10], "Add with an unsigned immediate."
+    Addis, "Addis %a %b %c", 1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10], "Add with a signed immediate."
   };
   assert_eq!(test_potato::witness(), 3);
 }

@@ -25,6 +25,13 @@ impl Parse for Pipeline {
   }
 }
 
+impl Parse for Mnemonic {
+  fn parse(input: ParseStream) -> Result<Self> {
+    input.parse::<syn::LitStr>()?.value();
+    Ok(Mnemonic { })
+  }
+}
+
 #[derive(PartialEq,Eq)]
 struct Instructions {
   instructions: Vec<Instruction>,
@@ -34,8 +41,12 @@ impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
     input.parse::<Token![,]>()?;
+    let mnemonic = input.parse::<Mnemonic>()?;
+    input.parse::<Token![,]>()?;
+    let bitpattern = input.parse::<BitPattern>()?;
+    input.parse::<Token![,]>()?;
     let description = input.parse::<syn::LitStr>()?.value();
-    return Ok(Instruction { name: name, mnemonic: Mnemonic { }, bitpattern: Bitpattern { }, description: description, parts: vec!() });
+    return Ok(Instruction { name: name, mnemonic: mnemonic, bitpattern: bitpattern, description: description, parts: vec!() });
   }
 }
 
@@ -43,7 +54,7 @@ impl Parse for Instruction {
 struct Instruction {
   name: String,
   mnemonic: Mnemonic,
-  bitpattern: Bitpattern,
+  bitpattern: BitPattern,
   description: String,
   parts: Vec<(Stage, Action, Timing)>,
 }
@@ -53,7 +64,39 @@ struct Mnemonic {
 }
 
 #[derive(PartialEq,Eq)]
-struct Bitpattern {
+struct BitPattern {
+  pat: Vec<PatBit>,
+}
+
+#[derive(PartialEq,Eq,Debug)]
+enum PatBit {
+  Zero,
+  One,
+  Underscore,
+  Var(syn::ExprType),
+}
+
+impl Parse for BitPattern {
+  fn parse(input: ParseStream) -> Result<Self> {
+    let mut pat: Vec<PatBit> = vec!();
+    while(!input.peek(Token![,])) {
+      //eprint!("Building {:?}", pat);
+      if input.peek(syn::LitInt) {
+        let digit = input.parse::<syn::LitInt>()?;
+        match digit.base10_parse::<u16>()? {
+          0 => pat.push(PatBit::Zero),
+          1 => pat.push(PatBit::One),
+          x => return Err(syn::Error::new_spanned(digit, format!("Expecting bit, got {}", x))),
+        }
+      } else if input.peek(Token![_]) {
+        input.parse::<Token![_]>()?;
+        pat.push(PatBit::Underscore);
+      } else {
+        pat.push(PatBit::Var(input.parse::<syn::ExprType>()?));
+      }
+    }
+    return Ok(BitPattern { pat: pat });
+  }
 }
 
 #[derive(PartialEq,Eq)]
@@ -125,7 +168,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    * instruction
    * name, mnemonic, bitpattern, description, (stage×action×timing)*
    *
-   * bitpattern 0 1 are bits, name:enc is a name with encoding enc
+   * bitpattern 0 1 _ are bits, name:enc is a name with encoding enc
    * 
    *
    * tick function
