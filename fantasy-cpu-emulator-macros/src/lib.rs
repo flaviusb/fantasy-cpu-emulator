@@ -179,8 +179,19 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
 
   let chip_info: ChipInfo = syn::parse(input).unwrap();
   let mod_name = format_ident!("{}", chip_info.name);
+  let instruction_seq: syn::punctuated::Punctuated<syn::Variant, Token![,]> = chip_info.instructions.instructions.into_iter().map(|instr| {
+    let name = quote::format_ident!("{}", instr.name);
+    let v: syn::Variant = syn::parse_quote! {
+      #name()
+    };
+    v
+  }).collect();
   (quote! {
     mod #mod_name {
+      #[derive(Debug,PartialEq,Eq)]
+      pub enum Instruction {
+        #instruction_seq
+      }
       pub fn witness() -> u8 {
         3
       }

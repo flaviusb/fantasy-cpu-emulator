@@ -15,4 +15,5 @@ fn define_blank_chip() {
     Addis, "Addis %a %b %c", 1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10], "Add with a signed immediate."
   };
   assert_eq!(test_potato::witness(), 3);
+  assert_ne!(test_potato::Instruction::Add(), test_potato::Instruction::Addiu());
 }
