@@ -32,13 +32,40 @@ struct Instructions {
 
 impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
-    let mnemonic = input.parse::<Ident>()?;
-    return Ok(Instruction { });
+    let name = input.parse::<Ident>()?.to_string();
+    input.parse::<Token![,]>()?;
+    let description = input.parse::<syn::LitStr>()?.value();
+    return Ok(Instruction { name: name, mnemonic: Mnemonic { }, bitpattern: Bitpattern { }, description: description, parts: vec!() });
   }
 }
 
 #[derive(PartialEq,Eq)]
 struct Instruction {
+  name: String,
+  mnemonic: Mnemonic,
+  bitpattern: Bitpattern,
+  description: String,
+  parts: Vec<(Stage, Action, Timing)>,
+}
+
+#[derive(PartialEq,Eq)]
+struct Mnemonic {
+}
+
+#[derive(PartialEq,Eq)]
+struct Bitpattern {
+}
+
+#[derive(PartialEq,Eq)]
+struct Stage {
+}
+
+#[derive(PartialEq,Eq)]
+struct Action {
+}
+
+#[derive(PartialEq,Eq)]
+struct Timing {
 }
 
 impl Parse for Instructions {
@@ -96,7 +123,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    * (with predefined functions like uX, iX)
    *
    * instruction
-   * mnemonic, bitpattern, description, (stage×action×timing)*
+   * name, mnemonic, bitpattern, description, (stage×action×timing)*
    *
    * bitpattern 0 1 are bits, name:enc is a name with encoding enc
    * 
