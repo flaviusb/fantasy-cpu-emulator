@@ -192,9 +192,6 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       pub enum Instruction {
         #instruction_seq
       }
-      pub fn witness() -> u8 {
-        3
-      }
     }
   }).into()
 }
