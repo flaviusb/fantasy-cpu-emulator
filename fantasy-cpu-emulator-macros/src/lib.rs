@@ -27,11 +27,29 @@ impl Parse for Pipeline {
 
 #[derive(PartialEq,Eq)]
 struct Instructions {
+  instructions: Vec<Instruction>,
 } 
+
+impl Parse for Instruction {
+  fn parse(input: ParseStream) -> Result<Self> {
+    let mnemonic = input.parse::<Ident>()?;
+    return Ok(Instruction { });
+  }
+}
+
+#[derive(PartialEq,Eq)]
+struct Instruction {
+}
 
 impl Parse for Instructions {
   fn parse(input: ParseStream) -> Result<Self> {
-    Ok(Instructions { })
+    syn::custom_punctuation!(H2, ##);
+    let mut instructions: Vec<Instruction> = vec!();
+    // Peek ahead to see whether we have more instructions
+    while(!(input.peek(H2) || input.is_empty())) {
+      instructions.push(input.parse::<Instruction>()?);
+    }
+    Ok(Instructions { instructions: instructions })
   }
 }
 
@@ -43,16 +61,17 @@ impl Parse for ChipInfo {
     // Sections: Pipeline, Instructions, Encoding Tables
     let mut pipeline: Option<Pipeline> = None;
     let mut instructions: Option<Instructions> = None;
+    syn::custom_punctuation!(H2, ##);
     while(pipeline == None || instructions == None) {
-      input.parse::<Token![#]>()?;
-      input.parse::<Token![#]>()?;
+      input.parse::<H2>()?;
+      //input.parse::<Token![#]>()?;
       let section = input.parse::<Ident>()?;
       match section.to_string().as_str() {
         "Pipeline" => {
           pipeline = Some(Pipeline { });
         },
         "Instructions" => {
-          instructions = Some(Instructions { });
+          instructions = Some(input.parse::<Instructions>()?);
         },
         section_name => {
           return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline or Instructions.", section_name)));
