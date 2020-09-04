@@ -77,8 +77,18 @@ enum PatBit {
   Var(syn::ExprType),
 }
 
-fn rationalise(ty: syn::Type, idx: syn::Type) -> syn::Type {
-  
+fn rationalise(ty: syn::Type) -> syn::Type {
+    let IDX:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("usize", proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let I8:    syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i8"   , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let I16:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i16"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let I32:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i32"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let I64:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i64"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let I128:  syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i128" , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let U8:    syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("u8"   , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let U16:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("u16"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let U32:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("u32"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let U64:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("u64"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+    let U128:  syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("u128" , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
   // We need a registry of types
   match ty.clone() {
     syn::Type::Path(syn::TypePath{qself, path}) => {
@@ -93,13 +103,51 @@ fn rationalise(ty: syn::Type, idx: syn::Type) -> syn::Type {
         syn::Type::Verbatim(x) => {
           match x.to_string() .as_ref(){
             "mem" => {
-              return idx
+              return IDX
             },
             y     => panic!(format!("I don't understand {}", y)),
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("mem") => {
-          return idx
+          return IDX
+        },
+        syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("u") => {
+          let len = match len {
+            syn::Expr::Lit(syn::ExprLit{lit: syn::Lit::Int(x), ..}) => x.base10_parse::<u32>().unwrap(),
+            y => panic!(format!("I don't understand {:?}", y)),
+          };
+          if len > 128 {
+            panic!("Unsigned value too long: {} bits", len);
+          } else if len > 64 {
+            return U128
+          } else if len > 32 {
+            return U64
+          } else if len > 16 {
+            return U32
+          } else if len > 8 {
+            return U16
+          } else {
+            return U8
+          }
+        },
+        syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("i") => {
+          let len = match len {
+            syn::Expr::Lit(syn::ExprLit{lit: syn::Lit::Int(x), ..}) => x.base10_parse::<u32>().unwrap(),
+            y => panic!(format!("I don't understand {:?}", y)),
+          };
+          if len > 128 {
+            panic!("Unsigned value too long: {} bits", len);
+          } else if len > 64 {
+            return I128
+          } else if len > 32 {
+            return I64
+          } else if len > 16 {
+            return I32
+          } else if len > 8 {
+            return I16
+          } else {
+            return I8
+          }
         },
         x     => panic!(format!("I don't understand {:?}", x)),
       }
@@ -234,9 +282,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             syn::Expr::Path(path) => path.path.get_ident().unwrap().clone(),
             x                     => panic!(format!("Got {:?}, expected a Path.", x)),
           };
-          let thing: syn::ExprType = (syn::parse_quote! { x: usize });
-          let idx: syn::Type = *(thing.ty);
-          let ty2 = rationalise(*ty.clone(), idx);
+          let ty2 = rationalise(*ty.clone());
           args.push(syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name.to_string(), proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty2 });
         },
       }

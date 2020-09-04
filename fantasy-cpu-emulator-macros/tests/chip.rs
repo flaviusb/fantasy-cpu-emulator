@@ -11,8 +11,10 @@ fn define_blank_chip() {
     ##Instructions
 
     Add,     "Add %a %b %c", 1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10], "Add things."
-    Addiu, "Addiu %a %b %c", 1 0 1 0 0 0 _ _ a:u8 b:[mem; 10] c:[mem; 10], "Add with an unsigned immediate."
-    Addis, "Addis %a %b %c", 1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10], "Add with a signed immediate."
+    Addiu,   "Addiu %a %b %c", 1 0 1 0 0 0 _ _ a:u8 b:[mem; 10] c:[mem; 10], "Add with an unsigned immediate."
+    Addis,   "Addis %a %b %c", 1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10], "Add with a signed immediate."
+    Addis3,  "Addis3 %a %b %c", 1 0 1 0 1 0 _ _ _ _ a:[i; 6] b:[mem; 10] c:[mem; 10], "Add with a six bit signed immediate."
+    Addisl,  "Addisl %a %b %c", 1 0 1 0 1 0 a:[i; 10] b:[mem; 10] c:[mem; 10], "Add with a ten bit signed immediate."
   };
   /*define_chip! {
     #test_potato
