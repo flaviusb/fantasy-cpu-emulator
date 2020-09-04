@@ -1,6 +1,7 @@
 extern crate proc_macro;
 extern crate syn;
 #[macro_use] extern crate quote;
+extern crate proc_macro2;
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -75,6 +76,39 @@ enum PatBit {
   Underscore,
   Var(syn::ExprType),
 }
+
+fn rationalise(ty: syn::Type, idx: syn::Type) -> syn::Type {
+  
+  // We need a registry of types
+  match ty.clone() {
+    syn::Type::Path(syn::TypePath{qself, path}) => {
+      match path.get_ident().unwrap().to_string().as_ref() {
+        "i8" => return ty,
+        "u8" => return ty,
+        y    => panic!(format!("I don't understand {:?}", y)),
+      }
+    },
+    syn::Type::Array(syn::TypeArray{bracket_token, elem, semi_token, len}) => {
+      match *elem {
+        syn::Type::Verbatim(x) => {
+          match x.to_string() .as_ref(){
+            "mem" => {
+              return idx
+            },
+            y     => panic!(format!("I don't understand {}", y)),
+          }
+        },
+        syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("mem") => {
+          return idx
+        },
+        x     => panic!(format!("I don't understand {:?}", x)),
+      }
+    },
+    _ => panic!("???")
+  }
+}
+
+
 
 impl Parse for BitPattern {
   fn parse(input: ParseStream) -> Result<Self> {
@@ -188,9 +222,30 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   }).collect();
   let instruction_structs: Vec<syn::ItemStruct> = chip_info.instructions.instructions.into_iter().map(|instr| {
     let name = quote::format_ident!("{}", instr.name);
+    let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
+    instr.bitpattern.pat.iter().for_each(|pat| {
+      match pat {
+        PatBit::Zero       => (),
+        PatBit::One        => (),
+        PatBit::Underscore => (),
+        PatBit::Var(syn::ExprType{attrs, expr, colon_token, ty})   => {
+          //let boxed = &exp.expr;
+          let name = match &**expr {
+            syn::Expr::Path(path) => path.path.get_ident().unwrap().clone(),
+            x                     => panic!(format!("Got {:?}, expected a Path.", x)),
+          };
+          let thing: syn::ExprType = (syn::parse_quote! { x: usize });
+          let idx: syn::Type = *(thing.ty);
+          let ty2 = rationalise(*ty.clone(), idx);
+          args.push(syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name.to_string(), proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty2 });
+        },
+      }
+    });
+
     let v: syn::ItemStruct = syn::parse_quote! {
       #[derive(Debug,PartialEq,Eq)]
       pub struct #name {
+        #args
       }
     };
     v
