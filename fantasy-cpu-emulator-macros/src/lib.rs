@@ -12,8 +12,23 @@ use syn::{Expr, Ident, Type, Visibility};
 
 struct ChipInfo {
   name: String,
+  memories: Vec<Memory>,
   pipeline: Pipeline,
   instructions: Instructions,
+}
+
+#[derive(PartialEq,Eq)]
+struct Memory {
+  name: String,
+  kind: MemoryType,
+  word_size: u32,
+  address_size: u32,
+  words: u32,
+}
+
+#[derive(PartialEq,Eq)]
+enum MemoryType {
+  Scratch(),
 }
 
 #[derive(PartialEq,Eq)]
@@ -205,6 +220,48 @@ impl Parse for Instructions {
   }
 }
 
+impl Parse for Memory {
+  fn parse(input: ParseStream) -> Result<Self> {
+    let name = input.parse::<Ident>()?.to_string();
+    let mut kind: Option<MemoryType> = None;
+    let mut word_size: Option<u32> = None;
+    let mut address_size: Option<u32> = None;
+    let mut words: Option<u32> = None;
+    while(input.peek(Token![*]) && !input.is_empty()) {
+      input.parse::<Token![*]>()?;
+      if input.peek(syn::Ident) {
+        // memory type case
+        // Currently can only be scratch
+        match input.parse::<syn::Ident>()?.to_string().as_ref() {
+          "scratch" | "Scratch" => kind = Some(MemoryType::Scratch()),
+          x                     => panic!(format!("Expected memory type: scratch or Scratch, got {} instead.", x)),
+        };
+      } else {
+        let num = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
+        match input.parse::<syn::Ident>()?.to_string().as_ref() {
+          "bit" => {
+            match input.parse::<syn::Ident>()?.to_string().as_ref() {
+              "word" => {
+                word_size = Some(num);
+              },
+              "address" => {
+                match input.parse::<syn::Ident>()?.to_string().as_ref() {
+                  "size" => address_size = Some(num),
+                  x      => panic!(format!("Expected size, got {}.", x)),
+                };
+              },
+              x => panic!(format!("Expected word or address, got {}.", x)),
+            };
+          },
+          "words" => words = Some(num),
+          x => panic!(format!("Expected bit, got {}.", x)),
+        };
+      };
+    }
+    Ok(Memory { name: name, kind: kind.unwrap(), word_size: word_size.unwrap(), address_size: address_size.unwrap(), words: words.unwrap() })
+  }
+}
+
 impl Parse for ChipInfo {
   fn parse(input: ParseStream) -> Result<Self> {
     input.parse::<Token![#]>()?;
@@ -213,12 +270,27 @@ impl Parse for ChipInfo {
     // Sections: Pipeline, Instructions, Encoding Tables
     let mut pipeline: Option<Pipeline> = None;
     let mut instructions: Option<Instructions> = None;
+    let mut memories: Vec<Memory> = vec!();
     syn::custom_punctuation!(H2, ##);
-    while(pipeline == None || instructions == None) {
+    while(input.peek(H2) && !input.is_empty()) {
       input.parse::<H2>()?;
-      //input.parse::<Token![#]>()?;
       let section = input.parse::<Ident>()?;
       match section.to_string().as_str() {
+        "Dis" => {
+          input.parse::<Token![/]>()?;
+          let section_continued = input.parse::<Ident>()?.to_string();
+          if !(section_continued == "Assembler") {
+            panic!(format!("Expected Dis/Assembler section, got Dis/{} instead.", section_continued));
+          } else {
+            //
+          }
+        },
+        "Memory" => {
+          while(input.peek(Token![-]) && !input.is_empty()) {
+            input.parse::<Token![-]>()?;
+            memories.push(input.parse::<Memory>()?);
+          }
+        },
         "Pipeline" => {
           pipeline = Some(Pipeline { });
         },
@@ -226,12 +298,12 @@ impl Parse for ChipInfo {
           instructions = Some(input.parse::<Instructions>()?);
         },
         section_name => {
-          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline or Instructions.", section_name)));
+          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline, Instructions, Memory, or Dis/Assembler.", section_name)));
           //return Err(input.error("Unexpected section name; expected Pipeline or Instructions."));
         },
       }
     }
-    Ok(ChipInfo { name:name, pipeline: pipeline.unwrap(), instructions: instructions.unwrap() })
+    Ok(ChipInfo { name:name, memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap() })
   }
 }
 
