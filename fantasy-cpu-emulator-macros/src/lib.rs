@@ -29,6 +29,7 @@ struct Memory {
 #[derive(PartialEq,Eq)]
 enum MemoryType {
   Scratch(),
+  Register(),
 }
 
 #[derive(PartialEq,Eq)]
@@ -233,8 +234,9 @@ impl Parse for Memory {
         // memory type case
         // Currently can only be scratch
         match input.parse::<syn::Ident>()?.to_string().as_ref() {
-          "scratch" | "Scratch" => kind = Some(MemoryType::Scratch()),
-          x                     => panic!(format!("Expected memory type: scratch or Scratch, got {} instead.", x)),
+          "scratch" | "Scratch"   => kind = Some(MemoryType::Scratch()),
+          "register" | "Register" => kind = Some(MemoryType::Register()),
+          x                       => panic!(format!("Expected memory type: scratch or Scratch or register or Register, got {} instead.", x)),
         };
       } else {
         let num = input.parse::<syn::LitInt>()?.base10_parse::<u64>()?;
@@ -253,7 +255,7 @@ impl Parse for Memory {
               x => panic!(format!("Expected word or address, got {}.", x)),
             };
           },
-          "words" => words = Some(num),
+          "words" | "word" => words = Some(num),
           x => panic!(format!("Expected bit, got {}.", x)),
         };
       };

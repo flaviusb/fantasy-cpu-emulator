@@ -13,11 +13,11 @@ fn define_blank_chip() {
       * 36 bit word
       * 10 bit address size
       * 1024 words
-    - vbank
-      * scratch
-      * 32 bit word
-      * 64 bit address size
-      * 4294967296 words
+    - ip
+      * register
+      * 10 bit word
+      * 1 bit address size
+      * 1 word
 
     ## Dis/Assembler
 
