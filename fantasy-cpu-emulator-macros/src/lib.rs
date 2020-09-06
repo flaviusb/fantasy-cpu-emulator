@@ -21,9 +21,9 @@ struct ChipInfo {
 struct Memory {
   name: String,
   kind: MemoryType,
-  word_size: u32,
-  address_size: u32,
-  words: u32,
+  word_size: u64,
+  address_size: u64,
+  words: u64,
 }
 
 #[derive(PartialEq,Eq)]
@@ -224,9 +224,9 @@ impl Parse for Memory {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
     let mut kind: Option<MemoryType> = None;
-    let mut word_size: Option<u32> = None;
-    let mut address_size: Option<u32> = None;
-    let mut words: Option<u32> = None;
+    let mut word_size: Option<u64> = None;
+    let mut address_size: Option<u64> = None;
+    let mut words: Option<u64> = None;
     while(input.peek(Token![*]) && !input.is_empty()) {
       input.parse::<Token![*]>()?;
       if input.peek(syn::Ident) {
@@ -237,7 +237,7 @@ impl Parse for Memory {
           x                     => panic!(format!("Expected memory type: scratch or Scratch, got {} instead.", x)),
         };
       } else {
-        let num = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
+        let num = input.parse::<syn::LitInt>()?.base10_parse::<u64>()?;
         match input.parse::<syn::Ident>()?.to_string().as_ref() {
           "bit" => {
             match input.parse::<syn::Ident>()?.to_string().as_ref() {
