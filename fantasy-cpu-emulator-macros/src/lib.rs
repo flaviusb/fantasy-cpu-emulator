@@ -333,6 +333,10 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    * 
    */
 
+  fn mkField(name: String, ty: syn::Type) -> syn::Field {
+    syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name, proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty }
+  }
+
   let chip_info: ChipInfo = syn::parse(input).unwrap();
   let mod_name = format_ident!("{}", chip_info.name);
   let instruction_seq: syn::punctuated::Punctuated<syn::Variant, Token![,]> = chip_info.instructions.instructions.iter().map(|instr| {
@@ -357,7 +361,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             x                     => panic!(format!("Got {:?}, expected a Path.", x)),
           };
           let ty2 = rationalise(*ty.clone());
-          args.push(syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name.to_string(), proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty2 });
+          args.push(mkField(name.to_string(), ty2));
         },
       }
     });
