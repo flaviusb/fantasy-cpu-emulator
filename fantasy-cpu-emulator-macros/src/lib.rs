@@ -374,8 +374,16 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     };
     v
   }).collect();
+  let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
+  for mem in chip_info.memories.iter() {
+    // All memories are scratch for now
+    //mems.push(mkField(mem.name, 
+  }
   (quote! {
     mod #mod_name {
+      pub struct Memories {
+
+      }
       pub mod Instructions {
         #(#instruction_structs)*
       }
