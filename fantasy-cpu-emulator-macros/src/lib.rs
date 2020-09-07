@@ -29,7 +29,7 @@ struct Memory {
 #[derive(PartialEq,Eq)]
 enum MemoryType {
   Scratch(),
-  Register(),
+  Register(), // Note: deal with register geometry, eg several named, flags, vectors /w lanes, maybe special case instruction pointer?
 }
 
 #[derive(PartialEq,Eq)]
