@@ -21,15 +21,25 @@ struct ChipInfo {
 struct Memory {
   name: String,
   kind: MemoryType,
+}
+
+#[derive(PartialEq,Eq)]
+enum MemoryType { // Still to add: stacks (for eg hardware return stack), ringbuffers, queues, ...
+  Scratch(ScratchMemory),
+  Register(Vec<RegisterMemory>),
+}
+
+#[derive(PartialEq,Eq)]
+struct ScratchMemory {
   word_size: u64,
   address_size: u64,
   words: u64,
 }
 
 #[derive(PartialEq,Eq)]
-enum MemoryType {
-  Scratch(),
-  Register(), // Note: deal with register geometry, eg several named, flags, vectors /w lanes, maybe special case instruction pointer?
+struct RegisterMemory {
+  name: String, // we need geometry information in here as well
+  width: u64,   // but we don't handle vector registers, lanes, register sets, subaddressing schemes, flags, special casing IP, registers with a fixed value etc yet
 }
 
 #[derive(PartialEq,Eq)]
@@ -223,44 +233,57 @@ impl Parse for Instructions {
 
 impl Parse for Memory {
   fn parse(input: ParseStream) -> Result<Self> {
-    let name = input.parse::<Ident>()?.to_string();
-    let mut kind: Option<MemoryType> = None;
-    let mut word_size: Option<u64> = None;
-    let mut address_size: Option<u64> = None;
-    let mut words: Option<u64> = None;
-    while(input.peek(Token![*]) && !input.is_empty()) {
-      input.parse::<Token![*]>()?;
-      if input.peek(syn::Ident) {
-        // memory type case
-        // Currently can only be scratch
-        match input.parse::<syn::Ident>()?.to_string().as_ref() {
-          "scratch" | "Scratch"   => kind = Some(MemoryType::Scratch()),
-          "register" | "Register" => kind = Some(MemoryType::Register()),
-          x                       => panic!(format!("Expected memory type: scratch or Scratch or register or Register, got {} instead.", x)),
-        };
-      } else {
-        let num = input.parse::<syn::LitInt>()?.base10_parse::<u64>()?;
-        match input.parse::<syn::Ident>()?.to_string().as_ref() {
-          "bit" => {
-            match input.parse::<syn::Ident>()?.to_string().as_ref() {
-              "word" => {
-                word_size = Some(num);
-              },
-              "address" => {
-                match input.parse::<syn::Ident>()?.to_string().as_ref() {
-                  "size" => address_size = Some(num),
-                  x      => panic!(format!("Expected size, got {}.", x)),
-                };
-              },
-              x => panic!(format!("Expected word or address, got {}.", x)),
-            };
-          },
-          "words" | "word" => words = Some(num),
-          x => panic!(format!("Expected bit, got {}.", x)),
-        };
-      };
+    mod kw {
+      syn::custom_keyword!(is);
+      syn::custom_keyword!(bit);
     }
-    Ok(Memory { name: name, kind: kind.unwrap(), word_size: word_size.unwrap(), address_size: address_size.unwrap(), words: words.unwrap() })
+    let name = input.parse::<Ident>()?.to_string();
+    input.parse::<kw::is>();
+    //let mut kind: Option<MemoryType> = None;
+    match input.parse::<syn::Ident>()?.to_string().as_ref() {
+      "scratch" | "Scratch"   => {
+        let mut word_size: Option<u64> = None;
+        let mut address_size: Option<u64> = None;
+        let mut words: Option<u64> = None;
+        while(input.peek(Token![*]) && !input.is_empty()) {
+          input.parse::<Token![*]>()?;
+          let num = input.parse::<syn::LitInt>()?.base10_parse::<u64>()?;
+          match input.parse::<syn::Ident>()?.to_string().as_ref() {
+            "bit" => {
+              match input.parse::<syn::Ident>()?.to_string().as_ref() {
+                "word" => {
+                  word_size = Some(num);
+                },
+                "address" => {
+                  match input.parse::<syn::Ident>()?.to_string().as_ref() {
+                    "size" => address_size = Some(num),
+                    x      => panic!(format!("Expected size, got {}.", x)),
+                  };
+                },
+                x => panic!(format!("Expected word or address, got {}.", x)),
+              };
+            },
+            "words" | "word" => words = Some(num),
+            x => panic!(format!("Expected bit, got {}.", x)),
+          };
+        };
+        return Ok(Memory { name: name, kind: MemoryType::Scratch(ScratchMemory {word_size: word_size.unwrap(), address_size: address_size.unwrap(), words: words.unwrap() }) });
+      },
+      "register" | "Register" => {
+        let mut registers: Vec<RegisterMemory> = vec!();
+        while(input.peek(Token![*]) && !input.is_empty()) {
+          input.parse::<Token![*]>()?;
+          let name = input.parse::<syn::Ident>()?.to_string();
+          input.parse::<Token![:]>()?;
+          let num = input.parse::<syn::LitInt>()?.base10_parse::<u64>()?;
+          input.parse::<kw::bit>()?;
+          registers.push(RegisterMemory { name: name, width: num });
+        };
+        return  Ok(Memory { name: name, kind: MemoryType::Register(registers) });
+      },
+      x => panic!(format!("Expected memory type: scratch or Scratch or register or Register, got {} instead.", x)),
+    };
+    panic!("Failed to parse memory.");
   }
 }
 

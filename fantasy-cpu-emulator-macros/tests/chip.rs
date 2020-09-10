@@ -8,16 +8,12 @@ fn define_blank_chip() {
 
     ## Memory
 
-    - base
-      * scratch
+    - base is scratch
       * 36 bit word
       * 10 bit address size
       * 1024 words
-    - ip
-      * register
-      * 10 bit word
-      * 1 bit address size
-      * 1 word
+    - registers is register
+      * ip: 10 bit
 
     ## Dis/Assembler
 
