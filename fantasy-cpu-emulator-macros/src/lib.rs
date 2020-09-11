@@ -111,6 +111,9 @@ fn mkTypeR(name: &str) -> syn::Type {
 fn mkType(name: String) -> syn::Type {
   return syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new(&name, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
 }
+fn mkType2(segment1: String, name: String) -> syn::Type {
+  return syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::Punctuated(syn::PathSegment{ident:syn::Ident::new(&segment1, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None}, Token![::](proc_macro2::Span::call_site())), syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new(&name, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+}
 
 fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ident)>) {
     let IDX = mkTypeR("usize");
@@ -157,23 +160,23 @@ fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ide
           } else if len == 128 {
             return (U128, None)
           } else if len > 64 {
-            return (U128.clone(), Some((name, U128, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U128, format_ident!("U{}", len))))
           } else if len == 64 {
             return (U64, None)
           } else if len > 32 {
-            return (U64.clone(), Some((name, U64, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U64, format_ident!("U{}", len))))
           } else if len == 32 {
             return (U32, None)
           } else if len > 16 {
-            return (U32.clone(), Some((name, U32, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U32, format_ident!("U{}", len))))
           } else if len == 16 {
             return (U16, None)
           } else if len > 8 {
-            return (U16.clone(), Some((name, U16, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U16, format_ident!("U{}", len))))
           } else if len == 8 {
             return (U8, None)
           } else {
-            return (U8.clone(), Some((name, U8, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U8, format_ident!("U{}", len))))
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("i") => {
@@ -187,23 +190,23 @@ fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ide
           } else if len == 128 {
             return (I128, None)
           } else if len > 64 {
-            return (I128.clone(), Some((name, I128, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I128, format_ident!("I{}", len))))
           } else if len == 64 {
             return (I64, None)
           } else if len > 32 {
-            return (I64.clone(), Some((name, I64, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I64, format_ident!("I{}", len))))
           } else if len == 32 {
             return (I32, None)
           } else if len > 16 {
-            return (I32.clone(), Some((name, I32, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I32, format_ident!("I{}", len))))
           } else if len == 16 {
             return (I16, None)
           } else if len > 8 {
-            return (I16.clone(), Some((name, I16, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I16, format_ident!("I{}", len))))
           } else if len == 8 {
             return (I8, None)
           } else {
-            return (I8.clone(), Some((name, I8, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I8, format_ident!("I{}", len))))
           }
         },
         x     => panic!(format!("I don't understand {:?}", x)),
