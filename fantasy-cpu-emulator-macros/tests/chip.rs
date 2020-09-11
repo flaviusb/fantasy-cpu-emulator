@@ -44,4 +44,5 @@ fn define_blank_chip() {
   */
 
   assert_ne!(test_potato::Instruction::Add(test_potato::Instructions::Add{a:3, b:3, c:3}), test_potato::Instruction::Addiu(test_potato::Instructions::Addiu{a:3, b:3, c:3}));
+  assert_eq!(3 as test_potato::I6, 3);
 }
