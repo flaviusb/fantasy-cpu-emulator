@@ -10,6 +10,8 @@ use syn::parse::{Parse, ParseStream, Parser};
 use syn::spanned::Spanned;
 use syn::{Expr, Ident, Type, Visibility};
 
+use std::collections::HashMap;
+
 struct ChipInfo {
   name: String,
   memories: Vec<Memory>,
@@ -103,8 +105,15 @@ enum PatBit {
   Var(syn::ExprType),
 }
 
-fn rationalise(ty: syn::Type) -> syn::Type {
-    let IDX:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("usize", proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+fn mkTypeR(name: &str) -> syn::Type {
+  return syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new(name, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+}
+fn mkType(name: String) -> syn::Type {
+  return syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new(&name, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
+}
+
+fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Type)>) {
+    let IDX = mkTypeR("usize");
     let I8:    syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i8"   , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
     let I16:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i16"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
     let I32:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i32"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
@@ -119,8 +128,8 @@ fn rationalise(ty: syn::Type) -> syn::Type {
   match ty.clone() {
     syn::Type::Path(syn::TypePath{qself, path}) => {
       match path.get_ident().unwrap().to_string().as_ref() {
-        "i8" => return ty,
-        "u8" => return ty,
+        "i8" => return (ty, None),
+        "u8" => return (ty, None),
         y    => panic!(format!("I don't understand {:?}", y)),
       }
     },
@@ -129,31 +138,42 @@ fn rationalise(ty: syn::Type) -> syn::Type {
         syn::Type::Verbatim(x) => {
           match x.to_string() .as_ref(){
             "mem" => {
-              return IDX
+              return (IDX.clone(), Some(("mem".to_string(), IDX, mkTypeR("mem"))))
             },
             y     => panic!(format!("I don't understand {}", y)),
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("mem") => {
-          return IDX
+          return (IDX.clone(), Some(("mem".to_string(), IDX, mkTypeR("mem"))))
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("u") => {
           let len = match len {
             syn::Expr::Lit(syn::ExprLit{lit: syn::Lit::Int(x), ..}) => x.base10_parse::<u32>().unwrap(),
             y => panic!(format!("I don't understand {:?}", y)),
           };
+          let name = format!("U{}", len);
           if len > 128 {
             panic!("Unsigned value too long: {} bits", len);
+          } else if len == 128 {
+            return (U128, None)
           } else if len > 64 {
-            return U128
+            return (U128.clone(), Some((name, U128, mkType(format!("U{}", len)))))
+          } else if len == 64 {
+            return (U64, None)
           } else if len > 32 {
-            return U64
+            return (U64.clone(), Some((name, U64, mkType(format!("U{}", len)))))
+          } else if len == 32 {
+            return (U32, None)
           } else if len > 16 {
-            return U32
+            return (U32.clone(), Some((name, U32, mkType(format!("U{}", len)))))
+          } else if len == 16 {
+            return (U16, None)
           } else if len > 8 {
-            return U16
+            return (U16.clone(), Some((name, U16, mkType(format!("U{}", len)))))
+          } else if len == 8 {
+            return (U8, None)
           } else {
-            return U8
+            return (U8.clone(), Some((name, U8, mkType(format!("U{}", len)))))
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("i") => {
@@ -161,18 +181,29 @@ fn rationalise(ty: syn::Type) -> syn::Type {
             syn::Expr::Lit(syn::ExprLit{lit: syn::Lit::Int(x), ..}) => x.base10_parse::<u32>().unwrap(),
             y => panic!(format!("I don't understand {:?}", y)),
           };
+          let name = format!("I{}", len);
           if len > 128 {
             panic!("Unsigned value too long: {} bits", len);
+          } else if len == 128 {
+            return (I128, None)
           } else if len > 64 {
-            return I128
+            return (I128.clone(), Some((name, I128, mkType(format!("I{}", len)))))
+          } else if len == 64 {
+            return (I64, None)
           } else if len > 32 {
-            return I64
+            return (I64.clone(), Some((name, I64, mkType(format!("I{}", len)))))
+          } else if len == 32 {
+            return (I32, None)
           } else if len > 16 {
-            return I32
+            return (I32.clone(), Some((name, I32, mkType(format!("I{}", len)))))
+          } else if len == 16 {
+            return (I16, None)
           } else if len > 8 {
-            return I16
+            return (I16.clone(), Some((name, I16, mkType(format!("I{}", len)))))
+          } else if len == 8 {
+            return (I8, None)
           } else {
-            return I8
+            return (I8.clone(), Some((name, I8, mkType(format!("I{}", len)))))
           }
         },
         x     => panic!(format!("I don't understand {:?}", x)),
@@ -369,6 +400,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     };
     v
   }).collect();
+  let mut rationalised_types: HashMap<String, syn::ItemType> = HashMap::new();
   let instruction_structs: Vec<syn::ItemStruct> = chip_info.instructions.instructions.into_iter().map(|instr| {
     let name = quote::format_ident!("{}", instr.name);
     let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
@@ -383,7 +415,10 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             syn::Expr::Path(path) => path.path.get_ident().unwrap().clone(),
             x                     => panic!(format!("Got {:?}, expected a Path.", x)),
           };
-          let ty2 = rationalise(*ty.clone());
+          let (ty2, maybe_decl) = rationalise(*ty.clone());
+          for (decl_name, backing_type, decl_type) in maybe_decl {
+
+          }
           args.push(mkField(name.to_string(), ty2));
         },
       }
@@ -402,8 +437,11 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     // All memories are scratch for now
     //mems.push(mkField(mem.name, 
   }
+  let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();
   (quote! {
     mod #mod_name {
+      #(#decl_types);*
+
       pub struct Memories {
 
       }
