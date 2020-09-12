@@ -396,7 +396,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   }
 
   let chip_info: ChipInfo = syn::parse(input).unwrap();
-  let mod_name = format_ident!("{}", chip_info.name);
+  let mod_name = format_ident!("{}", chip_info.name.clone());
   let instruction_seq: syn::punctuated::Punctuated<syn::Variant, Token![,]> = chip_info.instructions.instructions.iter().map(|instr| {
     let name = quote::format_ident!("{}", instr.name);
     let v: syn::Variant = syn::parse_quote! {
@@ -410,13 +410,29 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   for instr in chip_info.instructions.instructions.into_iter() {
     let name = quote::format_ident!("{}", instr.name);
     let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
-    instr.bitpattern.pat.iter().for_each(|pat| {
+
+    // This does two things; it populates args and it also builds up an Arm which will eventually be pushed into decode
+    let mut cmp = 0;
+    let mut ands = 0;
+    let mut idx = 0;
+    let mut fields: Vec<syn::FieldValue> = vec!();
+
+    for pat in instr.bitpattern.pat.iter() {
       match pat {
-        PatBit::Zero       => (),
-        PatBit::One        => (),
-        PatBit::Underscore => (),
+        PatBit::Zero       => {
+          idx += 1;
+          ands = ands | (1 << idx);
+        },
+        PatBit::One        => {
+          ands = ands | (1 << idx);
+          cmp = cmp | (1 << idx);
+          idx += 1;
+        },
+        PatBit::Underscore => {
+          idx += 1;
+        },
         PatBit::Var(syn::ExprType{attrs, expr, colon_token, ty})   => {
-          //let boxed = &exp.expr;
+          // First we generate the declation field corresponding to this variable in the declaration of the instruction stucture
           let name = match &**expr {
             syn::Expr::Path(path) => path.path.get_ident().unwrap().clone(),
             x                     => panic!(format!("Got {:?}, expected a Path.", x)),
@@ -426,10 +442,19 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             rationalised_types.insert(decl_name, syn::parse_quote!{ pub type #decl_type = #backing_type; });
           }
           args.push(mkField(name.to_string(), ty2));
+          
+          // Then we generate the field value corresponding to this variable in the match arm of the decoder
+          let shift = idx;
+          idx += len;
+          let mask = ((2^len) - 1);
+          let variable_getter: syn::Expr = (syn::parse_quote! { (((input >> #shift) & #mask) as #ty) });
+          let field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: variable_getter };
+          fields.push(field);
         },
       }
-    });
+    }
 
+    // Build the instruction struct from the generated fields
     let v: syn::ItemStruct = syn::parse_quote! {
       #[derive(Debug,PartialEq,Eq)]
       pub struct #name {
@@ -437,6 +462,12 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       }
     };
     instruction_structs.push(v);
+
+    // Then we build the decode arm
+    let guard: syn::Expr = (syn::parse_quote! { ((input & #ands) == #cmp) });
+    let chip_name = quote::format_ident!("{}", chip_info.name.clone());
+    let result: syn::Expr = (syn::parse_quote! { #chip_name::Instruction::#name(#chip_name::Instructions::#name { #(#fields),* }) });
+    decode.push(syn::parse_quote! { _ if #guard => #result, });
   };
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
   for mem in chip_info.memories.iter() {
