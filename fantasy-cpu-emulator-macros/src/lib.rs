@@ -404,7 +404,9 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     v
   }).collect();
   let mut rationalised_types: HashMap<String, syn::ItemType> = HashMap::new();
-  let instruction_structs: Vec<syn::ItemStruct> = chip_info.instructions.instructions.into_iter().map(|instr| {
+  let mut decode: Vec<syn::Arm> = vec!();
+  let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
+  for instr in chip_info.instructions.instructions.into_iter() {
     let name = quote::format_ident!("{}", instr.name);
     let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
     instr.bitpattern.pat.iter().for_each(|pat| {
@@ -433,8 +435,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         #args
       }
     };
-    v
-  }).collect();
+    instruction_structs.push(v);
+  };
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
   for mem in chip_info.memories.iter() {
     // All memories are scratch for now
