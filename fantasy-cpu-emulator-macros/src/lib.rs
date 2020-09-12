@@ -115,7 +115,8 @@ fn mkType2(segment1: String, name: String) -> syn::Type {
   return syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::Punctuated(syn::PathSegment{ident:syn::Ident::new(&segment1, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None}, Token![::](proc_macro2::Span::call_site())), syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new(&name, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
 }
 
-fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ident)>) {
+fn rationalise(ty: syn::Type) -> (syn::Type, u32, Option<(String, syn::Type, syn::Ident)>) {
+    let idx_len = 64; // Find a better way to do this
     let IDX = mkTypeR("usize");
     let I8:    syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i8"   , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
     let I16:   syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i16"  , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
@@ -131,8 +132,8 @@ fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ide
   match ty.clone() {
     syn::Type::Path(syn::TypePath{qself, path}) => {
       match path.get_ident().unwrap().to_string().as_ref() {
-        "i8" => return (ty, None),
-        "u8" => return (ty, None),
+        "i8" => return (ty, 8, None),
+        "u8" => return (ty, 8, None),
         y    => panic!(format!("I don't understand {:?}", y)),
       }
     },
@@ -141,13 +142,13 @@ fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ide
         syn::Type::Verbatim(x) => {
           match x.to_string() .as_ref(){
             "mem" => {
-              return (IDX.clone(), Some(("mem".to_string(), IDX, format_ident!("mem"))))
+              return (IDX.clone(), idx_len, Some(("mem".to_string(), IDX, format_ident!("mem"))))
             },
             y     => panic!(format!("I don't understand {}", y)),
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("mem") => {
-          return (IDX.clone(), Some(("mem".to_string(), IDX, format_ident!("mem"))))
+          return (IDX.clone(), idx_len, Some(("mem".to_string(), IDX, format_ident!("mem"))))
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("u") => {
           let len = match len {
@@ -158,25 +159,25 @@ fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ide
           if len > 128 {
             panic!("Unsigned value too long: {} bits", len);
           } else if len == 128 {
-            return (U128, None)
+            return (U128, len, None)
           } else if len > 64 {
-            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U128, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U128, format_ident!("U{}", len))))
           } else if len == 64 {
-            return (U64, None)
+            return (U64, len, None)
           } else if len > 32 {
-            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U64, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U64, format_ident!("U{}", len))))
           } else if len == 32 {
-            return (U32, None)
+            return (U32, len, None)
           } else if len > 16 {
-            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U32, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U32, format_ident!("U{}", len))))
           } else if len == 16 {
-            return (U16, None)
+            return (U16, len, None)
           } else if len > 8 {
-            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U16, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U16, format_ident!("U{}", len))))
           } else if len == 8 {
-            return (U8, None)
+            return (U8, len, None)
           } else {
-            return (mkType2("super".to_string(), format!("U{}", len)), Some((name, U8, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U8, format_ident!("U{}", len))))
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("i") => {
@@ -188,25 +189,25 @@ fn rationalise(ty: syn::Type) -> (syn::Type, Option<(String, syn::Type, syn::Ide
           if len > 128 {
             panic!("Unsigned value too long: {} bits", len);
           } else if len == 128 {
-            return (I128, None)
+            return (I128, len, None)
           } else if len > 64 {
-            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I128, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I128, format_ident!("I{}", len))))
           } else if len == 64 {
-            return (I64, None)
+            return (I64, len, None)
           } else if len > 32 {
-            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I64, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I64, format_ident!("I{}", len))))
           } else if len == 32 {
-            return (I32, None)
+            return (I32, len, None)
           } else if len > 16 {
-            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I32, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I32, format_ident!("I{}", len))))
           } else if len == 16 {
-            return (I16, None)
+            return (I16, len, None)
           } else if len > 8 {
-            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I16, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I16, format_ident!("I{}", len))))
           } else if len == 8 {
-            return (I8, None)
+            return (I8, len, None)
           } else {
-            return (mkType2("super".to_string(), format!("I{}", len)), Some((name, I8, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I8, format_ident!("I{}", len))))
           }
         },
         x     => panic!(format!("I don't understand {:?}", x)),
@@ -420,7 +421,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             syn::Expr::Path(path) => path.path.get_ident().unwrap().clone(),
             x                     => panic!(format!("Got {:?}, expected a Path.", x)),
           };
-          let (ty2, maybe_decl) = rationalise(*ty.clone());
+          let (ty2, len, maybe_decl) = rationalise(*ty.clone());
           for (decl_name, backing_type, decl_type) in maybe_decl {
             rationalised_types.insert(decl_name, syn::parse_quote!{ pub type #decl_type = #backing_type; });
           }
