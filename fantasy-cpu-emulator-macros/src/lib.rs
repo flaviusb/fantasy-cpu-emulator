@@ -5,6 +5,7 @@ extern crate proc_macro2;
 
 use proc_macro::TokenStream;
 use quote::quote;
+use quote::ToTokens;
 use syn::{parse, Attribute, PathSegment, Result, Token};
 use syn::parse::{Parse, ParseStream, Parser};
 use syn::spanned::Spanned;
@@ -14,6 +15,7 @@ use std::collections::HashMap;
 
 struct ChipInfo {
   name: String,
+  instruction_width: u8,
   memories: Vec<Memory>,
   pipeline: Pipeline,
   instructions: Instructions,
@@ -115,7 +117,7 @@ fn mkType2(segment1: String, name: String) -> syn::Type {
   return syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::Punctuated(syn::PathSegment{ident:syn::Ident::new(&segment1, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None}, Token![::](proc_macro2::Span::call_site())), syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new(&name, proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
 }
 
-fn rationalise(ty: syn::Type) -> (syn::Type, u32, Option<(String, syn::Type, syn::Ident)>) {
+fn rationalise(ty: syn::Type) -> (syn::Type, u32, bool, Option<(String, syn::Type, syn::Ident)>) {
     let idx_len = 64; // Find a better way to do this
     let IDX = mkTypeR("usize");
     let I8:    syn::Type = syn::Type::Path(syn::TypePath{qself: None, path: syn::Path{leading_colon: None, segments: vec!(syn::punctuated::Pair::End(syn::PathSegment{ident:syn::Ident::new("i8"   , proc_macro2::Span::call_site()), arguments: syn::PathArguments::None})).into_iter().collect()}});
@@ -132,8 +134,8 @@ fn rationalise(ty: syn::Type) -> (syn::Type, u32, Option<(String, syn::Type, syn
   match ty.clone() {
     syn::Type::Path(syn::TypePath{qself, path}) => {
       match path.get_ident().unwrap().to_string().as_ref() {
-        "i8" => return (ty, 8, None),
-        "u8" => return (ty, 8, None),
+        "i8" => return (ty, 8, true, None),
+        "u8" => return (ty, 8, false, None),
         y    => panic!(format!("I don't understand {:?}", y)),
       }
     },
@@ -142,13 +144,13 @@ fn rationalise(ty: syn::Type) -> (syn::Type, u32, Option<(String, syn::Type, syn
         syn::Type::Verbatim(x) => {
           match x.to_string() .as_ref(){
             "mem" => {
-              return (IDX.clone(), idx_len, Some(("mem".to_string(), IDX, format_ident!("mem"))))
+              return (IDX.clone(), idx_len, false, Some(("mem".to_string(), IDX, format_ident!("mem"))))
             },
             y     => panic!(format!("I don't understand {}", y)),
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("mem") => {
-          return (IDX.clone(), idx_len, Some(("mem".to_string(), IDX, format_ident!("mem"))))
+          return (IDX.clone(), idx_len, false, Some(("mem".to_string(), IDX, format_ident!("mem"))))
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("u") => {
           let len = match len {
@@ -159,25 +161,25 @@ fn rationalise(ty: syn::Type) -> (syn::Type, u32, Option<(String, syn::Type, syn
           if len > 128 {
             panic!("Unsigned value too long: {} bits", len);
           } else if len == 128 {
-            return (U128, len, None)
+            return (U128, len, false, None)
           } else if len > 64 {
-            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U128, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, false, Some((name, U128, format_ident!("U{}", len))))
           } else if len == 64 {
-            return (U64, len, None)
+            return (U64, len, false, None)
           } else if len > 32 {
-            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U64, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, false, Some((name, U64, format_ident!("U{}", len))))
           } else if len == 32 {
-            return (U32, len, None)
+            return (U32, len, false, None)
           } else if len > 16 {
-            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U32, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, false, Some((name, U32, format_ident!("U{}", len))))
           } else if len == 16 {
-            return (U16, len, None)
+            return (U16, len, false, None)
           } else if len > 8 {
-            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U16, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, false, Some((name, U16, format_ident!("U{}", len))))
           } else if len == 8 {
-            return (U8, len, None)
+            return (U8, len, false, None)
           } else {
-            return (mkType2("super".to_string(), format!("U{}", len)), len, Some((name, U8, format_ident!("U{}", len))))
+            return (mkType2("super".to_string(), format!("U{}", len)), len, false, Some((name, U8, format_ident!("U{}", len))))
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("i") => {
@@ -189,25 +191,25 @@ fn rationalise(ty: syn::Type) -> (syn::Type, u32, Option<(String, syn::Type, syn
           if len > 128 {
             panic!("Unsigned value too long: {} bits", len);
           } else if len == 128 {
-            return (I128, len, None)
+            return (I128, len, true, None)
           } else if len > 64 {
-            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I128, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, true, Some((name, I128, format_ident!("I{}", len))))
           } else if len == 64 {
-            return (I64, len, None)
+            return (I64, len, true, None)
           } else if len > 32 {
-            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I64, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, true, Some((name, I64, format_ident!("I{}", len))))
           } else if len == 32 {
-            return (I32, len, None)
+            return (I32, len, true, None)
           } else if len > 16 {
-            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I32, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, true, Some((name, I32, format_ident!("I{}", len))))
           } else if len == 16 {
-            return (I16, len, None)
+            return (I16, len, true, None)
           } else if len > 8 {
-            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I16, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, true, Some((name, I16, format_ident!("I{}", len))))
           } else if len == 8 {
-            return (I8, len, None)
+            return (I8, len, true, None)
           } else {
-            return (mkType2("super".to_string(), format!("I{}", len)), len, Some((name, I8, format_ident!("I{}", len))))
+            return (mkType2("super".to_string(), format!("I{}", len)), len, true, Some((name, I8, format_ident!("I{}", len))))
           }
         },
         x     => panic!(format!("I don't understand {:?}", x)),
@@ -331,6 +333,7 @@ impl Parse for ChipInfo {
     let mut pipeline: Option<Pipeline> = None;
     let mut instructions: Option<Instructions> = None;
     let mut memories: Vec<Memory> = vec!();
+    let mut instruction_width: Option<u8> = None;
     syn::custom_punctuation!(H2, ##);
     while(input.peek(H2) && !input.is_empty()) {
       input.parse::<H2>()?;
@@ -357,13 +360,25 @@ impl Parse for ChipInfo {
         "Instructions" => {
           instructions = Some(input.parse::<Instructions>()?);
         },
+        "Misc" => {
+          input.parse::<Token![-]>()?;
+          let ins = input.parse::<Ident>()?.to_string();
+          if ins != "Instruction" {
+            panic!("Expected 'Instruction', got {}.", ins);
+          }
+          let width = input.parse::<Ident>()?.to_string();
+          if width != "width" {
+            panic!("Expected 'width', got {}.", width);
+          }
+          input.parse::<Token![:]>()?;
+          instruction_width = Some(input.parse::<syn::LitInt>()?.base10_parse::<u8>()?);
+        },
         section_name => {
-          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline, Instructions, Memory, or Dis/Assembler.", section_name)));
-          //return Err(input.error("Unexpected section name; expected Pipeline or Instructions."));
+          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline, Instructions, Memory, Dis/Assembler, or Misc.", section_name)));
         },
       }
     }
-    Ok(ChipInfo { name:name, memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap() })
+    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap() })
   }
 }
 
@@ -390,7 +405,15 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    * decode (and encode)
    * 
    */
-
+  fn convert_if_needed(from: syn::Type, to: syn::Type, expr: syn::Expr) -> syn::Expr {
+    if from != to {
+      syn::parse_quote! {
+        #to::try_from(#expr).unwrap()
+      }
+    } else {
+      expr
+    }
+  }
   fn mkField(name: String, ty: syn::Type) -> syn::Field {
     syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name, proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty }
   }
@@ -405,7 +428,14 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     v
   }).collect();
   let mut rationalised_types: HashMap<String, syn::ItemType> = HashMap::new();
+  // Stuff in the instruction width right away
+  {
+    let decl_type = mkType(format!("U{}", chip_info.instruction_width));
+    let backing_type = mkType(format!("u{}", chip_info.instruction_width.next_power_of_two()));
+    rationalised_types.insert(format!("U{}", chip_info.instruction_width), syn::parse_quote!{ pub type #decl_type = #backing_type; });
+  };
   let mut decode: Vec<syn::Arm> = vec!();
+  let decode_input_type = mkType(format!("U{}", chip_info.instruction_width));
   let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
   for instr in chip_info.instructions.instructions.into_iter() {
     let name = quote::format_ident!("{}", instr.name);
@@ -437,8 +467,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             syn::Expr::Path(path) => path.path.get_ident().unwrap().clone(),
             x                     => panic!(format!("Got {:?}, expected a Path.", x)),
           };
-          let (ty2, len, maybe_decl) = rationalise(*ty.clone());
-          for (decl_name, backing_type, decl_type) in maybe_decl {
+          let (ty2, len, signed, maybe_decl) = rationalise(*ty.clone());
+          for (decl_name, backing_type, decl_type) in maybe_decl.clone() {
             rationalised_types.insert(decl_name, syn::parse_quote!{ pub type #decl_type = #backing_type; });
           }
           args.push(mkField(name.to_string(), ty2.clone()));
@@ -446,9 +476,88 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           // Then we generate the field value corresponding to this variable in the match arm of the decoder
           let shift = idx;
           idx += len;
-          let mask: u128 = ((2^len) - 1).into();
-          let variable_getter: syn::Expr = (syn::parse_quote! { (((input >> #shift) & #mask) as #ty2) });
-          let field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: variable_getter };
+          let inner_shift: syn::Expr = syn::parse_quote! {
+            (input >> #shift)
+          };
+          // We need the backing types of all the relevant variables, and then we use that to call convert_if_needed(from, to, expr)
+          // backing_extract is the backing type for the bitfield being extracted
+          // backing_input is the backing type for the input argument to the generated decode function
+          let backing_extract = match (signed, maybe_decl.clone()) {
+            (true,  _)                => mkType(format!("u{}", len.next_power_of_two())), // Backing extract type needs to be unsigned
+            (false, Some((_, it, _))) => it.clone(),
+            (false, None)             => ty2.clone(),
+          };
+          let backing_input  = mkType(format!("u{}", chip_info.instruction_width.next_power_of_two()));
+          let big_type       = mkTypeR("u128");
+          let idx_type       = mkTypeR("u32");
+          let shift_safe     = convert_if_needed(backing_input.clone(), backing_extract.clone(), inner_shift);
+          let mask_inner: syn::Expr = syn::parse_quote! {
+            ((2^#len) - 1)
+          };
+          let mask_safe      = convert_if_needed(idx_type.clone(), backing_extract.clone(), mask_inner);
+          //dbg!(shift_safe);
+          //dbg!(mask_safe);
+          // Handling the field extraction differs based on signed/unsigned and whether the field is a native size
+          let variable_getter: syn::Expr = match (signed, len.next_power_of_two() == len) {
+            (false, true) => {
+              // This is the simplest path. We can use Rust's defaults
+              let variable_getter: syn::Expr = (syn::parse_quote! {
+                {
+                  let mask = #mask_safe;
+                  (#shift_safe & mask)
+                }
+              });
+              variable_getter
+            },
+            (true, true) => {
+              // Slightly subtle, but we can assume Rust sizes
+              let unsigned_container = mkType(format!("u{}", len.next_power_of_two()));
+              let variable_getter: syn::Expr = (syn::parse_quote! {
+                {
+                  let mask = #mask_safe;
+                  #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shift_safe & mask))
+                }
+              });
+              variable_getter
+            },
+            (false, false) => {
+              // We can extend without any special handling as the value is unsigned
+              let variable_getter: syn::Expr = (syn::parse_quote! { 
+                {
+                  let mask = #mask_safe;
+                  (#shift_safe & mask)
+                }
+              });
+              variable_getter
+            },
+            (true, false) => {
+              // Add sign extension code in the generated code, as what to do depends on sign
+              let backing_size = len.next_power_of_two();
+              let unsigned_container = mkType(format!("u{}", backing_size));
+              let top_bit: syn::Expr = syn::parse_quote! {
+                (1 << (#len - 1))
+              };
+              let top_bit_safe = convert_if_needed(idx_type.clone(), mkType(format!("u{}", chip_info.instruction_width.next_power_of_two())), top_bit);
+              let extension_mask: syn::Expr = syn::parse_quote! {
+                (((2^#backing_size)-1) ^ ((2^#len)-1))
+              };
+              let extension_mask_safe = convert_if_needed(idx_type.clone(), unsigned_container.clone(), extension_mask);
+              let variable_getter: syn::Expr = (syn::parse_quote! {
+                {
+                  let top_bit: super::#decode_input_type = #top_bit_safe;
+                  let mask = #mask_safe;
+                  if (input & top_bit) == top_bit {
+                    #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes((#shift_safe & mask) | #extension_mask_safe))
+                  } else {
+                    #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shift_safe & mask))
+                  }
+                }
+              });
+              variable_getter
+            },
+          };
+          let field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name.clone()), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: variable_getter.clone() };
+          //println!("Variable getter for field {} of instruction {}: {}", name, instr.name.clone(), (variable_getter.clone()).to_token_stream());
           fields.push(field);
         },
       }
@@ -464,7 +573,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     instruction_structs.push(v);
 
     // Then we build the decode arm
-    let guard: syn::Expr = (syn::parse_quote! { ((input & #ands) == #cmp) });
+    let guard: syn::Expr = (syn::parse_quote! { (((input as u128) & #ands) == #cmp) });
     let chip_name = quote::format_ident!("{}", chip_info.name.clone());
     let result: syn::Expr = (syn::parse_quote! { super::Instruction::#name(#name { #(#fields),* }) });
     decode.push(syn::parse_quote! { _ if #guard => #result, });
@@ -483,7 +592,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
 
       }
       pub mod Instructions {
-        pub fn decode(input: u128) -> super::Instruction {
+        pub fn decode(input: super::#decode_input_type) -> super::Instruction {
+          use std::convert::TryFrom;
           match input {
             #(#decode)*
             x => panic!(format!("Could not decode instruction: {}", x)),
