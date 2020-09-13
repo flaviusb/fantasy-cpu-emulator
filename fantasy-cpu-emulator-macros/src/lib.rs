@@ -144,13 +144,21 @@ fn rationalise(ty: syn::Type) -> (syn::Type, u32, bool, Option<(String, syn::Typ
         syn::Type::Verbatim(x) => {
           match x.to_string() .as_ref(){
             "mem" => {
-              return (IDX.clone(), idx_len, false, Some(("mem".to_string(), IDX, format_ident!("mem"))))
+              let len = match len {
+                syn::Expr::Lit(syn::ExprLit{lit: syn::Lit::Int(x), ..}) => x.base10_parse::<u32>().unwrap(),
+                y => panic!(format!("I don't understand {:?}", y)),
+              };
+              return (IDX.clone(), len, false, Some(("mem".to_string(), IDX, format_ident!("mem"))))
             },
             y     => panic!(format!("I don't understand {}", y)),
           }
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("mem") => {
-          return (IDX.clone(), idx_len, false, Some(("mem".to_string(), IDX, format_ident!("mem"))))
+          let len = match len {
+            syn::Expr::Lit(syn::ExprLit{lit: syn::Lit::Int(x), ..}) => x.base10_parse::<u32>().unwrap(),
+            y => panic!(format!("I don't understand {:?}", y)),
+          };
+          return (IDX.clone(), len, false, Some(("mem".to_string(), IDX, format_ident!("mem"))))
         },
         syn::Type::Path(syn::TypePath{qself, path}) if qself.is_none() && path.is_ident("u") => {
           let len = match len {
@@ -240,6 +248,7 @@ impl Parse for BitPattern {
         pat.push(PatBit::Var(input.parse::<syn::ExprType>()?));
       }
     }
+    pat.reverse();
     return Ok(BitPattern { pat: pat });
   }
 }
@@ -450,8 +459,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     for pat in instr.bitpattern.pat.iter() {
       match pat {
         PatBit::Zero       => {
-          idx += 1;
           ands = ands | (1 << idx);
+          idx += 1;
         },
         PatBit::One        => {
           ands = ands | (1 << idx);
@@ -535,7 +544,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
               let backing_size = len.next_power_of_two();
               let unsigned_container = mkType(format!("u{}", backing_size));
               let top_bit: syn::Expr = syn::parse_quote! {
-                (1 << (#len - 1))
+                ((1 as super::#decode_input_type) << #len)
               };
               let top_bit_safe = convert_if_needed(idx_type.clone(), mkType(format!("u{}", chip_info.instruction_width.next_power_of_two())), top_bit);
               let extension_mask: syn::Expr = syn::parse_quote! {

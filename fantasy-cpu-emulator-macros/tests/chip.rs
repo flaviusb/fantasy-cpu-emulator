@@ -56,9 +56,9 @@ fn test_potato_instructions_exist() {
 }
 #[test]
 fn test_potato_instruction_decode() {
-  //assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000000000000000000000000), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0, b: 0, c: 0 } ));
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000000000000000000000000), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0, b: 0, c: 0 } ));
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000000000_00000000000000000000000000000000), test_potato::Instruction::Nop(test_potato::Instructions::Nop {  } ));
-  assert_eq!(test_potato::Instructions::decode(0b0000_0000_0000_0000_0000_0000_0000_1100__0000_0000_0000_0000_0000_0000_0000_0000), test_potato::Instruction::Nopi(test_potato::Instructions::Nopi {  } ));
+  assert_eq!(test_potato::Instructions::decode(0b0000_0000_0000_0000_0000_0000_0000_0000__0000_0000_0000_0000_0000_0000_0000_0011), test_potato::Instruction::Nopi(test_potato::Instructions::Nopi {  } ));
   // Endianness issues need to be dealt with before we can actually pull arguments out of an instruction
   //assert_eq!(test_potato::Instructions::decode(0b0000_0000_0000_0000_0000_0000_0000_0000__0000_0000_0000_0000_0000_0000_0001_0111), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0, b: 0, c: 0 } ) );
 }
