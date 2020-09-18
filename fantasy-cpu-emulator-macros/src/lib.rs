@@ -502,46 +502,38 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let mask_inner: syn::Expr = syn::parse_quote! {
             ((1 << #len) - 1)
           };
-          let mask_safe      = convert_if_needed(idx_type.clone(), backing_extract.clone(), mask_inner);
+          let mask_safe      = convert_if_needed(idx_type.clone(), big_type.clone(), mask_inner);
           let mask_thing      = convert_if_needed(backing_extract.clone(), backing_input.clone(), mask_safe.clone());
           let shift_part: syn::Expr = syn::parse_quote! {
             (#inner_shift & #mask_thing)
           };
-          let shift_safe     = convert_if_needed(backing_input.clone(), backing_extract.clone(), inner_shift.clone());
+          let shift_safe     = convert_if_needed(backing_input.clone(), big_type.clone(), inner_shift.clone());
+          let shifted_and_masked: syn::Expr = syn::parse_quote! {
+            (#shift_safe & #mask_safe)
+          };
+          let shifted_and_masked_safe = convert_if_needed(big_type.clone(), backing_extract.clone(), shifted_and_masked.clone());
+
           //dbg!(shift_safe);
           //dbg!(mask_safe);
           // Handling the field extraction differs based on signed/unsigned and whether the field is a native size
           let variable_getter: syn::Expr = match (signed, len.next_power_of_two() == len) {
             (false, true) => {
               // This is the simplest path. We can use Rust's defaults
-              let variable_getter: syn::Expr = (syn::parse_quote! {
-                {
-                  let mask = #mask_safe;
-                  (#shift_safe & mask)
-                }
-              });
-              variable_getter
+              shifted_and_masked_safe
             },
             (true, true) => {
               // Slightly subtle, but we can assume Rust sizes
               let unsigned_container = mkType(format!("u{}", len.next_power_of_two()));
               let variable_getter: syn::Expr = (syn::parse_quote! {
                 {
-                  let mask = #mask_safe;
-                  #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shift_safe & mask))
+                  #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shifted_and_masked_safe))
                 }
               });
               variable_getter
             },
             (false, false) => {
               // We can extend without any special handling as the value is unsigned
-              let variable_getter: syn::Expr = (syn::parse_quote! { 
-                {
-                  let mask = #mask_safe;
-                  (#shift_safe & mask)
-                }
-              });
-              variable_getter
+              shifted_and_masked_safe
             },
             (true, false) => {
               // Add sign extension code in the generated code, as what to do depends on sign
@@ -565,11 +557,11 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
                   if (#shift_part & top_bit) == top_bit {
                     //println!("Top bit set; attempting to extract from {}, {}", #inner_shift, #mask_safe);
                     //println!("Shift safe value: {}", #shift_safe);
-                    #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes((#shift_safe & mask) | #extension_mask_safe))
+                    #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes((#shifted_and_masked_safe) | #extension_mask_safe))
                   } else {
                     //println!("Top bit unset; attempting to extract from {}, {}", #inner_shift, #mask_safe);
                     //println!("Shift safe value: {}", #shift_safe);
-                    #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shift_safe & mask))
+                    #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shifted_and_masked_safe))
                   }
                 }
               });
