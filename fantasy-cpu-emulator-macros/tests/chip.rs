@@ -56,9 +56,12 @@ fn test_potato_instructions_exist() {
 }
 #[test]
 fn test_potato_instruction_decode() {
-  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000000000000000000000000), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0, b: 0, c: 0 } ));
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000000000_00000000000000000000000000000000), test_potato::Instruction::Nop(test_potato::Instructions::Nop {  } ));
   assert_eq!(test_potato::Instructions::decode(0b0000_0000_0000_0000_0000_0000_0000_0000__0000_0000_0000_0000_0000_0000_0000_0011), test_potato::Instruction::Nopi(test_potato::Instructions::Nopi {  } ));
-  // Endianness issues need to be dealt with before we can actually pull arguments out of an instruction
-  //assert_eq!(test_potato::Instructions::decode(0b0000_0000_0000_0000_0000_0000_0000_0000__0000_0000_0000_0000_0000_0000_0001_0111), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0, b: 0, c: 0 } ) );
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000000000000000000000000), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a:  0, b: 0, c: 0 } ));
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000000000000000000000001), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a:  0, b: 0, c: 1 } ) );
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000000000000110000000001), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a:  0, b: 3, c: 1 } ) );
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000000000100000000110000000001), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a:  1, b: 3, c: 1 } ) );
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10000001010110000001010000000011), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 21, b: 517, c: 3 } ) );
+  //assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001010_10111111111100000000110000000001), test_potato::Instruction::Addis3(test_potato::Instructions::Addis3 { a: -1, b: 3, c: 1 } ) );
 }

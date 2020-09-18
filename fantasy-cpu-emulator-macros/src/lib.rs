@@ -499,11 +499,15 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let backing_input  = mkType(format!("u{}", chip_info.instruction_width.next_power_of_two()));
           let big_type       = mkTypeR("u128");
           let idx_type       = mkTypeR("u32");
-          let shift_safe     = convert_if_needed(backing_input.clone(), backing_extract.clone(), inner_shift);
           let mask_inner: syn::Expr = syn::parse_quote! {
-            ((2^#len) - 1)
+            ((1 << #len) - 1)
           };
           let mask_safe      = convert_if_needed(idx_type.clone(), backing_extract.clone(), mask_inner);
+          let mask_thing      = convert_if_needed(backing_extract.clone(), backing_input.clone(), mask_safe.clone());
+          let shift_part: syn::Expr = syn::parse_quote! {
+            (#inner_shift & #mask_thing)
+          };
+          let shift_safe     = convert_if_needed(backing_input.clone(), backing_extract.clone(), inner_shift.clone());
           //dbg!(shift_safe);
           //dbg!(mask_safe);
           // Handling the field extraction differs based on signed/unsigned and whether the field is a native size
@@ -544,20 +548,27 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
               let backing_size = len.next_power_of_two();
               let unsigned_container = mkType(format!("u{}", backing_size));
               let top_bit: syn::Expr = syn::parse_quote! {
-                ((1 as super::#decode_input_type) << #len)
+                ((1 as #backing_input) << (#len - 1))
               };
-              let top_bit_safe = convert_if_needed(idx_type.clone(), mkType(format!("u{}", chip_info.instruction_width.next_power_of_two())), top_bit);
               let extension_mask: syn::Expr = syn::parse_quote! {
-                (((2^#backing_size)-1) ^ ((2^#len)-1))
+                ((((1 << #backing_size)-1) as #backing_extract) ^ (((1 << #len)-1) as #backing_extract))
               };
               let extension_mask_safe = convert_if_needed(idx_type.clone(), unsigned_container.clone(), extension_mask);
               let variable_getter: syn::Expr = (syn::parse_quote! {
                 {
-                  let top_bit: super::#decode_input_type = #top_bit_safe;
+                  //println!("len {}", #len);
+                  //println!("Extracting a signed thing.");
+                  let top_bit: #backing_input = #top_bit;
+                  //println!("Top bit.");
                   let mask = #mask_safe;
-                  if (input & top_bit) == top_bit {
+                  //println!("Mask.");
+                  if (#shift_part & top_bit) == top_bit {
+                    //println!("Top bit set; attempting to extract from {}, {}", #inner_shift, #mask_safe);
+                    //println!("Shift safe value: {}", #shift_safe);
                     #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes((#shift_safe & mask) | #extension_mask_safe))
                   } else {
+                    //println!("Top bit unset; attempting to extract from {}, {}", #inner_shift, #mask_safe);
+                    //println!("Shift safe value: {}", #shift_safe);
                     #ty2::from_ne_bytes(#unsigned_container::to_ne_bytes(#shift_safe & mask))
                   }
                 }
