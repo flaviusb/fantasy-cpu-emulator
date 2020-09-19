@@ -23,13 +23,14 @@ define_chip! {
   
   ## Instructions
 
-  Add,     "Add %a %b %c",    1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10],      "Add things."
-  Addiu,   "Addiu %a %b %c",  1 0 1 0 0 0 _ _ a:u8 b:[mem; 10] c:[mem; 10],         "Add with an unsigned immediate."
-  Addis,   "Addis %a %b %c",  1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10],         "Add with a signed immediate."
-  Addis3,  "Addis3 %a %b %c", 1 0 1 0 1 0 _ _ _ _ a:[i; 6] b:[mem; 10] c:[mem; 10], "Add with a six bit signed immediate."
-  Addisl,  "Addisl %a %b %c", 1 1 1 0 1 0 a:[i; 10] b:[mem; 10] c:[mem; 10],        "Add with a ten bit signed immediate."
-  Nop,     "Nop",             0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, "Nop."
-  Nopi,    "Nopi",            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1, "Signed Nop."
+  Add,     "Add %a %b %c",     1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10],                         "Add things."
+  Addiu,   "Addiu %a %b %c",   1 0 1 0 0 0 _ _ a:u8 b:[mem; 10] c:[mem; 10],                            "Add with an unsigned immediate."
+  Addis,   "Addis %a %b %c",   1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10],                            "Add with a signed immediate."
+  Addis3,  "Addis3 %a %b %c",  1 0 1 0 1 0 _ _ _ _ a:[i; 6] b:[mem; 10] c:[mem; 10],                    "Add with a six bit signed immediate."
+  Addisl,  "Addisl %a %b %c",  1 1 1 0 1 0 a:[i; 10] b:[mem; 10] c:[mem; 10],                           "Add with a ten bit signed immediate."
+  AddI,    "AddI %a %b %c %d", 1 1 1 1 1 0 0 0 a:[u; 6] b:[u; 6] c:[u; 6] d:[mem; 10],                  "Add indirect with three immediate offsets which can overlap."
+  Nop,     "Nop",              0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, "Nop."
+  Nopi,    "Nopi",             0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1, "Signed Nop."
 }
 /*
 
@@ -66,4 +67,5 @@ fn test_potato_instruction_decode() {
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001110_10111111111100000000110000000001), test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: -1, b: 3, c: 1 } ) );
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001010_10111111111100000000110000000001), test_potato::Instruction::Addis3(test_potato::Instructions::Addis3 { a: -1, b: 3, c: 1 } ) );
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001010_10111111111000000000110000000001), test_potato::Instruction::Addis3(test_potato::Instructions::Addis3 { a: -2, b: 3, c: 1 } ) );
+  assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001111_10000001100100000110101010101101), test_potato::Instruction::AddI(  test_potato::Instructions::AddI   { a: 6, b: 16, c: 26, d: 685 } ) );
 }
