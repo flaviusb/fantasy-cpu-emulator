@@ -69,3 +69,9 @@ fn test_potato_instruction_decode() {
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001010_10111111111000000000110000000001), test_potato::Instruction::Addis3(test_potato::Instructions::Addis3 { a: -2, b: 3, c: 1 } ) );
   assert_eq!(test_potato::Instructions::decode(0b00000000000000000000000000001111_10000001100100000110101010101101), test_potato::Instruction::AddI(  test_potato::Instructions::AddI   { a: 6, b: 16, c: 26, d: 685 } ) );
 }
+
+#[test]
+fn test_potato_instruction_encode() {
+  assert_eq!(test_potato::Instructions::encode(test_potato::Instruction::Nop(test_potato::Instructions::Nop {  } )), 0b00000000000000000000000000000000_00000000000000000000000000000000);
+  assert_eq!(test_potato::Instructions::encode(test_potato::Instruction::Nopi(test_potato::Instructions::Nopi {  } )), 0b0000_0000_0000_0000_0000_0000_0000_0000__0000_0000_0000_0000_0000_0000_0000_0011);
+}

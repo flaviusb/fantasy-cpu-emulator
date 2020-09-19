@@ -457,6 +457,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     let mut ands: u128 = 0;
     let mut idx: u32 = 0;
     let mut fields: Vec<syn::FieldValue> = vec!();
+    let mut encoded_bit_segments: Vec<syn::Expr> = vec!(); // Each segment of the instruction goes in here, and they are or-ed together
+    let mut encode_fields: Vec<syn::FieldPat> = vec!();
 
     for pat in instr.bitpattern.pat.iter() {
       match pat {
@@ -577,6 +579,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       }
     }
 
+    let cmp_thing = convert_if_needed(mkTypeR("u128"), mkType(format!("u{}", chip_info.instruction_width.next_power_of_two())), syn::parse_quote! { (#cmp) });
+    encoded_bit_segments.push(cmp_thing);
     // Build the instruction struct from the generated fields
     let v: syn::ItemStruct = syn::parse_quote! {
       #[derive(Debug,PartialEq,Eq)]
@@ -591,6 +595,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     let chip_name = quote::format_ident!("{}", chip_info.name.clone());
     let result: syn::Expr = (syn::parse_quote! { super::Instruction::#name(#name { #(#fields),* }) });
     decode.push(syn::parse_quote! { _ if #guard => #result, });
+    encode.push(syn::parse_quote! { super::Instruction::#name(#name { .. }) => #(#encoded_bit_segments)|*, });
   };
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
   for mem in chip_info.memories.iter() {
@@ -614,6 +619,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           }
         }
         pub fn encode(input: super::Instruction) -> super::#encode_output_type {
+          use std::convert::TryFrom;
           match input {
             #(#encode)*
             x => panic!(format!("Could not encode instruction: {:#?}", x)),
