@@ -445,6 +445,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   };
   let mut decode: Vec<syn::Arm> = vec!();
   let decode_input_type = mkType(format!("U{}", chip_info.instruction_width));
+  let mut encode: Vec<syn::Arm> = vec!();
+  let encode_output_type = decode_input_type.clone();
   let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
   for instr in chip_info.instructions.instructions.into_iter() {
     let name = quote::format_ident!("{}", instr.name);
@@ -609,6 +611,12 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           match input {
             #(#decode)*
             x => panic!(format!("Could not decode instruction: {}", x)),
+          }
+        }
+        pub fn encode(input: super::Instruction) -> super::#encode_output_type {
+          match input {
+            #(#encode)*
+            x => panic!(format!("Could not encode instruction: {:#?}", x)),
           }
         }
         #(#instruction_structs)*
