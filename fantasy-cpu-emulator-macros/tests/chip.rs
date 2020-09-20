@@ -41,10 +41,21 @@ define_chip! {
 
   ## Pipeline
   
-  fetch = #[default(fetch, 36 bits)] fetch
-  deposit = #[default(deposit, 36 bits)] deposit
-  decode = #[default(decode)] decode
-  encode = #[default(encode)] encode
+  - fetch
+    * unitary
+    * U10 → U36
+  - decode
+    * per-instruction
+    * U36 → ★
+  - memory→μregisters
+    * per-instruction
+    * ★ → ★
+  - compute
+    * per-instruction
+    * ★ → StateBundle { change_pc: Option<U10>, memory_writes: Vec<MemoryWrite> }
+  - write-out-state
+    * unitary
+    * StateBundle → ()
 
 */
 #[test]
