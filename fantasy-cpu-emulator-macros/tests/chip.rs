@@ -8,6 +8,15 @@ define_chip! {
 
   - Instruction width: 36
 
+  ## Raw
+
+  pub struct StateBundle {
+    pub change_pc: Option<mem>, pub memory_writes: Vec<MemoryWrite>,
+  }
+  pub struct MemoryWrite {
+    pub address: mem, pub value: U36,
+  }
+
   ## Memory
 
   - base is scratch
@@ -52,7 +61,7 @@ define_chip! {
     * ★ → ★
   - compute
     * per-instruction
-    * ★ → StateBundle { change_pc: Option<U10>, memory_writes: Vec<MemoryWrite> }
+    * ★ → StateBundle
   - write-out-state
     * unitary
     * StateBundle → ()
@@ -61,6 +70,7 @@ define_chip! {
 #[test]
 fn test_potato_types_exist() {
   assert_eq!(3 as test_potato::I6, 3);
+  assert_eq!((test_potato::StateBundle { change_pc: Some(35), memory_writes: vec!() }).change_pc, Some(35))
 }
 #[test]
 fn test_potato_instructions_exist() {

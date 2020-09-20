@@ -19,6 +19,7 @@ struct ChipInfo {
   memories: Vec<Memory>,
   pipeline: Pipeline,
   instructions: Instructions,
+  raw: Vec<syn::Item>,
 }
 
 #[derive(PartialEq,Eq)]
@@ -343,6 +344,7 @@ impl Parse for ChipInfo {
     let mut instructions: Option<Instructions> = None;
     let mut memories: Vec<Memory> = vec!();
     let mut instruction_width: Option<u8> = None;
+    let mut raw: Vec<syn::Item> = vec!();
     syn::custom_punctuation!(H2, ##);
     while(input.peek(H2) && !input.is_empty()) {
       input.parse::<H2>()?;
@@ -382,12 +384,17 @@ impl Parse for ChipInfo {
           input.parse::<Token![:]>()?;
           instruction_width = Some(input.parse::<syn::LitInt>()?.base10_parse::<u8>()?);
         },
+        "Raw" => {
+          while(!(input.peek(H2) || input.is_empty())) {
+            raw.push(input.parse::<syn::Item>()?);
+          };
+        },
         section_name => {
-          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline, Instructions, Memory, Dis/Assembler, or Misc.", section_name)));
+          return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline, Instructions, Memory, Dis/Assembler, Structs, or Misc.", section_name)));
         },
       }
     }
-    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap() })
+    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap(), raw: raw })
   }
 }
 
@@ -627,10 +634,11 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     //mems.push(mkField(mem.name, 
   }
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();
+  let raw = chip_info.raw;
   (quote! {
     mod #mod_name {
       #(#decl_types)*
-
+      #(#raw)*
       pub struct Memories {
 
       }
