@@ -426,6 +426,13 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   fn mkField(name: String, ty: syn::Type) -> syn::Field {
     syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name, proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty }
   }
+  fn mkFieldPat(name: String, binding: String) -> syn::FieldPat {
+    syn::FieldPat {
+      attrs: vec!(), member: syn::Member::Named(syn::Ident::new(&name, proc_macro2::Span::call_site())),
+      colon_token: Some(Token![:](proc_macro2::Span::call_site())),
+      pat: Box::new(syn::Pat::Ident(syn::PatIdent { attrs: vec!(), by_ref: None, mutability: None, ident: syn::Ident::new(&binding, proc_macro2::Span::call_site()), subpat: None, })),
+    }
+  }
 
   let chip_info: ChipInfo = syn::parse(input).unwrap();
   let mod_name = format_ident!("{}", chip_info.name.clone());
@@ -484,7 +491,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           for (decl_name, backing_type, decl_type) in maybe_decl.clone() {
             rationalised_types.insert(decl_name, syn::parse_quote!{ pub type #decl_type = #backing_type; });
           }
-          args.push(mkField(name.to_string(), ty2.clone()));
+          args.push(mkField(name.clone().to_string(), ty2.clone()));
           
           // Then we generate the field value corresponding to this variable in the match arm of the decoder
           let shift = idx;
@@ -575,6 +582,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name.clone()), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: variable_getter.clone() };
           //println!("Variable getter for field {} of instruction {}: {}", name, instr.name.clone(), (variable_getter.clone()).to_token_stream());
           fields.push(field);
+
+          encode_fields.push(mkFieldPat(name.clone().to_string(), name.clone().to_string()));
         },
       }
     }
@@ -595,7 +604,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     let chip_name = quote::format_ident!("{}", chip_info.name.clone());
     let result: syn::Expr = (syn::parse_quote! { super::Instruction::#name(#name { #(#fields),* }) });
     decode.push(syn::parse_quote! { _ if #guard => #result, });
-    encode.push(syn::parse_quote! { super::Instruction::#name(#name { .. }) => #(#encoded_bit_segments)|*, });
+    encode.push(syn::parse_quote! { super::Instruction::#name(#name { #(#encode_fields),* }) => #(#encoded_bit_segments)|*, });
   };
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
   for mem in chip_info.memories.iter() {
