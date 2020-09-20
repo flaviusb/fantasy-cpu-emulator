@@ -513,7 +513,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let mask_inner: syn::Expr = syn::parse_quote! {
             ((1 << #len) - 1)
           };
-          let mask_safe      = convert_if_needed(idx_type.clone(), big_type.clone(), mask_inner);
+          let mask_safe      = convert_if_needed(idx_type.clone(), big_type.clone(), mask_inner.clone());
           let mask_thing      = convert_if_needed(backing_extract.clone(), backing_input.clone(), mask_safe.clone());
           let shift_part: syn::Expr = syn::parse_quote! {
             (#inner_shift & #mask_thing)
@@ -582,6 +582,21 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name.clone()), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: variable_getter.clone() };
           //println!("Variable getter for field {} of instruction {}: {}", name, instr.name.clone(), (variable_getter.clone()).to_token_stream());
           fields.push(field);
+
+          // For encoding, mask and left shift
+          let instruction_width = chip_info.instruction_width;
+          let encode_mask_safe = convert_if_needed(idx_type.clone(), big_type.clone(), mask_inner);
+          let name_safe: syn::Expr = if signed {
+            let backing_size = len.next_power_of_two();
+            let unsigned_container = mkType(format!("u{}", backing_size));
+            convert_if_needed(unsigned_container.clone(), big_type.clone(), syn::parse_quote! { #unsigned_container::from_ne_bytes(#ty2::to_ne_bytes(#name)) } )
+          } else {
+            convert_if_needed(ty2.clone(), big_type.clone(), syn::parse_quote! { #name } )
+          };
+          let encode_shift_safe: syn::Expr = syn::parse_quote! { (#name_safe << #shift) };
+          let encoded_bit_segment: syn::Expr = convert_if_needed(big_type.clone(), backing_input.clone(), syn::parse_quote! { (#encode_shift_safe & (#encode_mask_safe << #shift)) });
+          //println!("{} encoding for {} is {}", instr.name.clone(), name.clone(), encoded_bit_segment.clone().to_token_stream());
+          encoded_bit_segments.push(encoded_bit_segment);
 
           encode_fields.push(mkFieldPat(name.clone().to_string(), name.clone().to_string()));
         },
