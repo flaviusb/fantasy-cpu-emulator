@@ -57,13 +57,6 @@ impl Parse for Pipeline {
   }
 }
 
-impl Parse for Mnemonic {
-  fn parse(input: ParseStream) -> Result<Self> {
-    input.parse::<syn::LitStr>()?.value();
-    Ok(Mnemonic { })
-  }
-}
-
 #[derive(PartialEq,Eq)]
 struct Instructions {
   instructions: Vec<Instruction>,
@@ -73,26 +66,19 @@ impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
     input.parse::<Token![,]>()?;
-    let mnemonic = input.parse::<Mnemonic>()?;
-    input.parse::<Token![,]>()?;
     let bitpattern = input.parse::<BitPattern>()?;
     input.parse::<Token![,]>()?;
     let description = input.parse::<syn::LitStr>()?.value();
-    return Ok(Instruction { name: name, mnemonic: mnemonic, bitpattern: bitpattern, description: description, parts: vec!() });
+    return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: vec!() });
   }
 }
 
 #[derive(PartialEq,Eq)]
 struct Instruction {
   name: String,
-  mnemonic: Mnemonic,
   bitpattern: BitPattern,
   description: String,
   parts: Vec<(Stage, Action, Timing)>,
-}
-
-#[derive(PartialEq,Eq)]
-struct Mnemonic {
 }
 
 #[derive(PartialEq,Eq)]
@@ -411,7 +397,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
    * (with predefined functions like uX, iX)
    *
    * instruction
-   * name, mnemonic, bitpattern, description, (stage×action×timing)*
+   * name, bitpattern, description, (stage×action×timing)*
    *
    * bitpattern 0 1 _ are bits, name:enc is a name with encoding enc
    * 
