@@ -16,6 +16,12 @@ define_chip! {
   pub struct MemoryWrite {
     pub address: mem, pub value: U36,
   }
+  type U10 = u16;
+  pub fn fetch(input: U10) -> U36 {
+    1
+  }
+  pub fn write_out_state(input: StateBundle) -> () {
+  }
 
   ## Memory
 
@@ -48,23 +54,45 @@ define_chip! {
   read = #[default] read_assembly
   print = #[default] print_assembly
 
+  pipeline does three things
+  1) Collects pipeline info from Instructions section
+  2) generates instruction enums/structures when a pipeline is per-instruction and doesn't use an exiting fn
+  3) generates functions for each stage of the pipeline or reexports existing functions
+
   ## Pipeline
   
-  - fetch
-    * unitary
-    * U10 → U36
-  - decode
-    * per-instruction
-    * U36 → ★
-  - memory→μregisters
+  - fetch = super::fetch
+  - decode = super::Instructions::decode
+  - memory_to_architectural_registers
     * per-instruction
     * ★ → ★
   - compute
     * per-instruction
-    * ★ → StateBundle
-  - write-out-state
-    * unitary
-    * StateBundle → ()
+    * ★ → super::StateBundle
+  - write_out_state = super::write_out_state
+
+  Generates
+  pub mod Pipeline {
+    pub use super::fetch as fetch;
+    pub use super::Instruction::decode as decode;
+    pub mod memory_to_architectural_registers {
+      pub struct Instructions
+    }
+    pub memory_to_architectural_registers(input: memory_to_architectural_registers::Instruction) -> compute::Instruction {
+      match input {
+        <collect arms here>
+      }
+    }
+    pub mod compute {
+      pub struct Instruction
+    }
+    pub fn compute(input: compute::Instruction) -> super::StateBundle {
+      match input {
+        <collect arms here>
+      }
+    }
+    pub use super::write_out_state as write_out_state;
+  }
 
 */
 #[test]
