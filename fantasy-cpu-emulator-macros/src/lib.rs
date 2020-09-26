@@ -76,6 +76,9 @@ impl Parse for Pipeline {
         if (input.peek(Token![~])) {
           input.parse::<Token![~]>()?;
           pipelines.push( Pipe::PerInstruction { name: name, out: None } );
+          if (input.peek(H2) || input.is_empty()) {
+            panic!("~ -> ~ not valid at end of pipeline list.");
+          }
         } else {
           let id = input.parse::<syn::TypePath>()?;
           pipelines.push( Pipe::PerInstruction { name: name, out: Some(id) } );
