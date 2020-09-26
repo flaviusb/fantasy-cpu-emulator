@@ -472,6 +472,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     let backing_type = mkType(format!("u{}", chip_info.instruction_width.next_power_of_two()));
     rationalised_types.insert(format!("U{}", chip_info.instruction_width), syn::parse_quote!{ pub type #decl_type = #backing_type; });
   };
+  let mut pipelines_with_arms: HashMap<String, Vec<syn::Arm>> = HashMap::new();
+  let mut pipelines_with_generated_types: HashMap<String, (syn::ItemType, syn::ItemEnum, Vec<(String, syn::ItemStruct)>)> = HashMap::new();
   let mut decode: Vec<syn::Arm> = vec!();
   let decode_input_type = mkType(format!("U{}", chip_info.instruction_width));
   let mut encode: Vec<syn::Arm> = vec!();
