@@ -648,6 +648,15 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     // All memories are scratch for now
     //mems.push(mkField(mem.name, 
   }
+  let mut pipelines: Vec<syn::Item> = vec!();
+  for pipe in chip_info.pipeline.pipelines.iter() {
+    match pipe {
+      Pipe::Use            { name: name, real: real } => {
+        pipelines.push(syn::parse_quote! { use #real as #name; } );
+      },
+      Pipe::PerInstruction { name: name, out: out }   => (),
+    }
+  }
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();
   let raw = chip_info.raw;
   (quote! {
@@ -656,6 +665,9 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       #(#raw)*
       pub struct Memories {
 
+      }
+      pub mod Pipeline {
+        #(#pipelines)*
       }
       pub mod Instructions {
         pub fn decode(input: super::#decode_input_type) -> super::Instruction {
