@@ -35,7 +35,13 @@ define_chip! {
   ## Dis/Assembler
 
   ## Pipeline
-  
+
+  - fetch = super::fetch
+  - decode = super::Instructions::decode
+  - memory_to_architectural_registers: ~ -> ~
+  - compute: ~ -> super::StateBundle
+  - write_out_state = super::write_out_state
+
   ## Instructions
 
   Add,    1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10],                         "Add things."
@@ -63,12 +69,8 @@ define_chip! {
   
   - fetch = super::fetch
   - decode = super::Instructions::decode
-  - memory_to_architectural_registers
-    * per-instruction
-    * ★ → ★
-  - compute
-    * per-instruction
-    * ★ → super::StateBundle
+  - memory_to_architectural_registers: ~ -> ~
+  - compute: ~ -> super::StateBundle
   - write_out_state = super::write_out_state
 
   Generates

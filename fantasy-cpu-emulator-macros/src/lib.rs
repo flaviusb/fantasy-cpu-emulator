@@ -49,11 +49,40 @@ struct RegisterMemory {
 
 #[derive(PartialEq,Eq)]
 struct Pipeline {
+  pipelines: Vec<Pipe>,
+}
+
+#[derive(PartialEq,Eq)]
+enum Pipe {
+  Use            { name: syn::Ident, real: syn::ExprPath },
+  PerInstruction { name: syn::Ident, out: Option<syn::TypePath> },
 }
 
 impl Parse for Pipeline {
   fn parse(input: ParseStream) -> Result<Self> {
-    Ok(Pipeline { })
+    syn::custom_punctuation!(H2, ##);
+    let mut pipelines: Vec<Pipe> = vec!();
+    while(!(input.peek(H2) || input.is_empty())) {
+      input.parse::<Token![-]>()?;
+      let name = input.parse::<Ident>()?; //.to_string();
+      if (input.peek(Token![=])) {
+        input.parse::<Token![=]>()?;
+        let real = input.parse::<syn::ExprPath>()?;
+        pipelines.push( Pipe::Use { name: name, real: real } );
+      } else {
+        input.parse::<Token![:]>()?;
+        input.parse::<Token![~]>()?;
+        input.parse::<Token![->]>()?;
+        if (input.peek(Token![~])) {
+          input.parse::<Token![~]>()?;
+          pipelines.push( Pipe::PerInstruction { name: name, out: None } );
+        } else {
+          let id = input.parse::<syn::TypePath>()?;
+          pipelines.push( Pipe::PerInstruction { name: name, out: Some(id) } );
+        }
+      }
+    }
+    Ok(Pipeline { pipelines: pipelines })
   }
 }
 
@@ -352,7 +381,7 @@ impl Parse for ChipInfo {
           }
         },
         "Pipeline" => {
-          pipeline = Some(Pipeline { });
+          pipeline = Some(input.parse::<Pipeline>()?);
         },
         "Instructions" => {
           instructions = Some(input.parse::<Instructions>()?);
