@@ -55,7 +55,7 @@ struct Pipeline {
 #[derive(PartialEq,Eq)]
 enum Pipe {
   Use            { name: syn::Ident, real: syn::ExprPath },
-  PerInstruction { name: syn::Ident, out: Option<syn::TypePath> },
+  PerInstruction { name: syn::Ident, input: syn::TypePath, output: syn::TypePath },
 }
 
 impl Parse for Pipeline {
@@ -71,18 +71,10 @@ impl Parse for Pipeline {
         pipelines.push( Pipe::Use { name: name, real: real } );
       } else {
         input.parse::<Token![:]>()?;
-        input.parse::<Token![~]>()?;
+        let fn_in = input.parse::<syn::TypePath>()?;
         input.parse::<Token![->]>()?;
-        if (input.peek(Token![~])) {
-          input.parse::<Token![~]>()?;
-          pipelines.push( Pipe::PerInstruction { name: name, out: None } );
-          if (input.peek(H2) || input.is_empty()) {
-            panic!("~ -> ~ not valid at end of pipeline list.");
-          }
-        } else {
-          let id = input.parse::<syn::TypePath>()?;
-          pipelines.push( Pipe::PerInstruction { name: name, out: Some(id) } );
-        }
+        let fn_out = input.parse::<syn::TypePath>()?;
+        pipelines.push( Pipe::PerInstruction { name: name, input: fn_in, output: fn_out } );
       }
     }
     Ok(Pipeline { pipelines: pipelines })
@@ -659,7 +651,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       Pipe::Use            { name: name, real: real } => {
         pipelines.push(syn::parse_quote! { use #real as #name; } );
       },
-      Pipe::PerInstruction { name: name, out: out }   => (),
+      Pipe::PerInstruction { name: name, input: input, output: out }   => (),
     }
   }
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();
