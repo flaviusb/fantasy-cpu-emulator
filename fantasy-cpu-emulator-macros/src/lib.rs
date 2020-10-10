@@ -54,8 +54,8 @@ struct Pipeline {
 
 #[derive(PartialEq,Eq)]
 enum Pipe {
-  Use            { name: syn::Ident, real: syn::ExprPath },
-  PerInstruction { name: syn::Ident, input: syn::TypePath, output: syn::TypePath },
+  Use            { fn_name: syn::Ident, module_name: syn::Ident, real: syn::ExprPath },
+  PerInstruction { fn_name: syn::Ident, module_name: syn::Ident, input: syn::TypePath, output: syn::TypePath },
 }
 
 impl Parse for Pipeline {
@@ -64,17 +64,19 @@ impl Parse for Pipeline {
     let mut pipelines: Vec<Pipe> = vec!();
     while(!(input.peek(H2) || input.is_empty())) {
       input.parse::<Token![-]>()?;
-      let name = input.parse::<Ident>()?; //.to_string();
+      let fn_name = input.parse::<Ident>()?;
+      input.parse::<Token![in]>()?;
+      let module_name = input.parse::<Ident>()?;
       if (input.peek(Token![=])) {
         input.parse::<Token![=]>()?;
         let real = input.parse::<syn::ExprPath>()?;
-        pipelines.push( Pipe::Use { name: name, real: real } );
+        pipelines.push( Pipe::Use { fn_name: fn_name, module_name: module_name, real: real } );
       } else {
         input.parse::<Token![:]>()?;
         let fn_in = input.parse::<syn::TypePath>()?;
         input.parse::<Token![->]>()?;
         let fn_out = input.parse::<syn::TypePath>()?;
-        pipelines.push( Pipe::PerInstruction { name: name, input: fn_in, output: fn_out } );
+        pipelines.push( Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: fn_in, output: fn_out } );
       }
     }
     Ok(Pipeline { pipelines: pipelines })
@@ -648,10 +650,10 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   let mut pipelines: Vec<syn::Item> = vec!();
   for pipe in chip_info.pipeline.pipelines.iter() {
     match pipe {
-      Pipe::Use            { name: name, real: real } => {
-        pipelines.push(syn::parse_quote! { use #real as #name; } );
+      Pipe::Use            { fn_name: fn_name, module_name: module_name, real: real } => {
+        pipelines.push(syn::parse_quote! { pub mod #module_name { use #real as #fn_name; } } );
       },
-      Pipe::PerInstruction { name: name, input: input, output: out }   => (),
+      Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => (),
     }
   }
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();

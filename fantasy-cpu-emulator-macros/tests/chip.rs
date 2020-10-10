@@ -36,11 +36,11 @@ define_chip! {
 
   ## Pipeline
 
-  - fetch = super::fetch
-  - decode = super::Instructions::decode
-  - memory_to_architectural_registers: super::Instruction -> super::Instruction
-  - compute: super::Instruction -> super::StateBundle
-  - write_out_state = super::write_out_state
+  - fetch in Fetch = super::super::fetch
+  - decode in Decode = super::super::Instructions::decode
+  - memory_to_architecture_registers in MemoryToArchitecturalRegisters: super::super::Instruction -> super::super::Instruction
+  - compute in Compute: super::super::Instruction -> super::super::StateBundle
+  - write_out_state in WriteOutState = super::super::write_out_state
 
   ## Instructions
 
