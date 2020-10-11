@@ -44,7 +44,7 @@ define_chip! {
 
   ## Instructions
 
-  Add,    1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10],                         "Add things."
+  Add,    1 0 1 0 1 1 a:[mem; 10] b:[mem; 10] c:[mem; 10], MemoryToArchitecturalRegisters <- 1 |a: super::U36, b: super::U36, c: super::U36| -> Add {use super::super::fetch; let (m, n, o) = (fetch(a), fetch(b), fetch(c)); Instruction::Add(Add{a: m, b: n, c: o})},                        "Add things, 36 bit."
   Addiu,  1 0 1 0 0 0 _ _ a:u8 b:[mem; 10] c:[mem; 10],                            "Add with an unsigned immediate."
   Addis,  1 0 1 0 0 1 _ _ a:i8 b:[mem; 10] c:[mem; 10],                            "Add with a signed immediate."
   Addis3, 1 0 1 0 1 0 _ _ _ _ a:[i; 6] b:[mem; 10] c:[mem; 10],                    "Add with a six bit signed immediate."

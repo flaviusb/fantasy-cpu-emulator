@@ -94,6 +94,16 @@ impl Parse for Instruction {
     input.parse::<Token![,]>()?;
     let bitpattern = input.parse::<BitPattern>()?;
     input.parse::<Token![,]>()?;
+    while(input.peek(syn::Ident)) {
+      let pipeline_stage = input.parse::<syn::Ident>()?.to_string();
+      input.parse::<Token![<-]>()?;
+      let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
+      let stage_packed = input.parse::<syn::ExprClosure>()?;
+      let (ast_frag_name, ast_frag_args, stage_action) = match stage_packed {
+        _ => ((),(),()),
+      };
+      input.parse::<Token![,]>()?;
+    }
     let description = input.parse::<syn::LitStr>()?.value();
     return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: vec!() });
   }
@@ -274,9 +284,11 @@ struct Stage {
 struct Action {
 }
 
-#[derive(PartialEq,Eq)]
-struct Timing {
-}
+//#[derive(PartialEq,Eq)]
+//struct Timing {
+//}
+
+type Timing = u32;
 
 impl Parse for Instructions {
   fn parse(input: ParseStream) -> Result<Self> {
