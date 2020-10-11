@@ -653,7 +653,19 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       Pipe::Use            { fn_name: fn_name, module_name: module_name, real: real } => {
         pipelines.push(syn::parse_quote! { pub mod #module_name { use #real as #fn_name; } } );
       },
-      Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => (),
+      Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => {
+        pipelines.push(syn::parse_quote! {
+          pub mod #module_name {
+            pub enum Instruction {
+            }
+            pub fn #fn_name(input: #input) -> #out {
+              match input {
+                _ => panic!(),
+              }
+            }
+          }
+        });
+      },
     }
   }
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();

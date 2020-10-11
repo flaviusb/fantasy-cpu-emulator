@@ -38,8 +38,8 @@ define_chip! {
 
   - fetch in Fetch = super::super::fetch
   - decode in Decode = super::super::Instructions::decode
-  - memory_to_architecture_registers in MemoryToArchitecturalRegisters: super::super::Instruction -> super::super::Instruction
-  - compute in Compute: super::super::Instruction -> super::super::StateBundle
+  - memory_to_architecture_registers in MemoryToArchitecturalRegisters: super::super::Instruction -> Instruction
+  - compute in Compute: super::MemoryToArchitecturalRegisters::Instruction -> super::super::StateBundle
   - write_out_state in WriteOutState = super::super::write_out_state
 
   ## Instructions
