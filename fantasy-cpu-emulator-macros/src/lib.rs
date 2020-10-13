@@ -101,7 +101,7 @@ impl Parse for Instruction {
       let stage_packed = input.parse::<syn::ExprClosure>()?;
       let (ast_frag_name, ast_frag_args, stage_action) = match stage_packed {
         syn::ExprClosure{attrs:_, asyncness: None, movability: None, capture: None, or1_token: syn::token::Or{..}, inputs: inputs, or2_token: syn::token::Or{..}, output: syn::ReturnType::Type(syn::token::RArrow{..}, name), body: body} => ((),(),()),
-        _ => ((),(),()),
+        _ => {input.parse::<Token![,]>()?; continue;},
       };
       input.parse::<Token![,]>()?;
     }
