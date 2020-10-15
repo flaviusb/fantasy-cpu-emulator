@@ -100,7 +100,10 @@ impl Parse for Instruction {
       let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
       let stage_packed = input.parse::<syn::ExprClosure>()?;
       let (ast_frag_name, ast_frag_args, stage_action) = match stage_packed {
-        syn::ExprClosure{attrs:_, asyncness: None, movability: None, capture: None, or1_token: syn::token::Or{..}, inputs: inputs, or2_token: syn::token::Or{..}, output: syn::ReturnType::Type(syn::token::RArrow{..}, name), body: body} => ((),(),()),
+        syn::ExprClosure{attrs:_, asyncness: None, movability: None, capture: None, or1_token: syn::token::Or{..}, inputs: inputs, or2_token: syn::token::Or{..}, output: syn::ReturnType::Type(syn::token::RArrow{..}, name), body: body} => (match *name {
+          syn::Type::Path(syn::TypePath{path: path, ..}) => path.get_ident().unwrap().to_string(),
+          _                                              => panic!("bleh"),
+        },(),body),
         _ => {input.parse::<Token![,]>()?; continue;},
       };
       input.parse::<Token![,]>()?;
