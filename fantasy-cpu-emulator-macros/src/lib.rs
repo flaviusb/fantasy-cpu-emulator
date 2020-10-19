@@ -91,6 +91,7 @@ struct Instructions {
 impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
+    let mut parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ExprStruct, Timing)> = vec!();
     input.parse::<Token![,]>()?;
     let bitpattern = input.parse::<BitPattern>()?;
     input.parse::<Token![,]>()?;
@@ -105,7 +106,9 @@ impl Parse for Instruction {
             syn::Type::Path(syn::TypePath{path: path, ..}) => path.get_ident().unwrap().to_string(),
             _                                              => panic!("bleh"),
           };
-          let ast_frag_args = ();
+          let mut ast_frag_args = ();
+          for arg in inputs.iter() {
+          }
           (ast_frag_name,ast_frag_args,body)
         },
         _ => {input.parse::<Token![,]>()?; continue;},
@@ -113,7 +116,7 @@ impl Parse for Instruction {
       input.parse::<Token![,]>()?;
     }
     let description = input.parse::<syn::LitStr>()?.value();
-    return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: vec!() });
+    return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: parts });
   }
 }
 
@@ -122,7 +125,7 @@ struct Instruction {
   name: String,
   bitpattern: BitPattern,
   description: String,
-  parts: Vec<(Stage, Action, Timing)>,
+  parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ExprStruct, Timing)>,
 }
 
 #[derive(PartialEq,Eq)]
@@ -284,13 +287,16 @@ impl Parse for BitPattern {
   }
 }
 
-#[derive(PartialEq,Eq)]
-struct Stage {
-}
+//#[derive(PartialEq,Eq)]
+//struct Stage {
+//}
+//
 
-#[derive(PartialEq,Eq)]
-struct Action {
-}
+type Stage = String;
+
+//#[derive(PartialEq,Eq)]
+//struct Action {
+//}
 
 //#[derive(PartialEq,Eq)]
 //struct Timing {
