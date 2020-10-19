@@ -100,20 +100,33 @@ impl Parse for Instruction {
       input.parse::<Token![<-]>()?;
       let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
       let stage_packed = input.parse::<syn::ExprClosure>()?;
-      let (ast_frag_name, ast_frag_args, stage_action) = match stage_packed {
+      let (ast_frag_name_ident, ast_frag_args, stage_action) = match stage_packed {
         syn::ExprClosure{attrs:_, asyncness: None, movability: None, capture: None, or1_token: syn::token::Or{..}, inputs: inputs, or2_token: syn::token::Or{..}, output: syn::ReturnType::Type(syn::token::RArrow{..}, name), body: body} => {
-          let ast_frag_name = match *name {
-            syn::Type::Path(syn::TypePath{path: path, ..}) => path.get_ident().unwrap().to_string(),
+          let ast_frag_name_ident = match *name {
+            syn::Type::Path(syn::TypePath{path: path, ..}) => path.get_ident().unwrap().clone(),
             _                                              => panic!("bleh"),
           };
-          let mut ast_frag_args = ();
+          let mut ast_frag_args: Vec<(syn::Ident, syn::Type)> = vec!();
           for arg in inputs.iter() {
+            let (ident, ty) = match arg {
+              syn::Pat::Type(syn::PatType{pat: pat, ty: ty, ..}) => {
+                let ident = match &**pat {
+                  syn::Pat::Ident(syn::PatIdent{ident: ident, ..}) => ident.clone(),
+                  _                           => continue,
+                };
+                let ty2 = (**ty).clone();
+                (ident, ty2)
+              },
+              _                                                  => continue,
+            };
+            ast_frag_args.push((ident, ty));
           }
-          (ast_frag_name,ast_frag_args,body)
+          (ast_frag_name_ident,ast_frag_args,body)
         },
         _ => {input.parse::<Token![,]>()?; continue;},
       };
       input.parse::<Token![,]>()?;
+      let stage_name = ast_frag_name_ident.to_string();
     }
     let description = input.parse::<syn::LitStr>()?.value();
     return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: parts });
