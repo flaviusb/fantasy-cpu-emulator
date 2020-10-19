@@ -91,7 +91,7 @@ struct Instructions {
 impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
-    let mut parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ExprStruct, Timing)> = vec!();
+    let mut parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ItemStruct, Timing)> = vec!();
     input.parse::<Token![,]>()?;
     let bitpattern = input.parse::<BitPattern>()?;
     input.parse::<Token![,]>()?;
@@ -100,6 +100,7 @@ impl Parse for Instruction {
       input.parse::<Token![<-]>()?;
       let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
       let stage_packed = input.parse::<syn::ExprClosure>()?;
+      let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
       let (ast_frag_name_ident, ast_frag_args, stage_action) = match stage_packed {
         syn::ExprClosure{attrs:_, asyncness: None, movability: None, capture: None, or1_token: syn::token::Or{..}, inputs: inputs, or2_token: syn::token::Or{..}, output: syn::ReturnType::Type(syn::token::RArrow{..}, name), body: body} => {
           let ast_frag_name_ident = match *name {
@@ -115,38 +116,47 @@ impl Parse for Instruction {
                   _                           => continue,
                 };
                 let ty2 = (**ty).clone();
+                args.push(mkField(ident.clone().to_string(), ty2.clone()));
                 (ident, ty2)
               },
               _                                                  => continue,
             };
             ast_frag_args.push((ident, ty));
           }
-          (ast_frag_name_ident,ast_frag_args,body)
+          (ast_frag_name_ident,ast_frag_args,*body)
         },
         _ => {input.parse::<Token![,]>()?; continue;},
       };
       input.parse::<Token![,]>()?;
       let stage_name = ast_frag_name_ident.to_string();
+      let mut ast_frag_args_idents: Vec<syn::Ident> = vec!();
+      for (id, ty) in ast_frag_args.clone().iter() {
+        ast_frag_args_idents.push(id.clone());
+      }
+      let afai2 = ast_frag_args_idents.clone();
+      let instruction_arm: syn::Arm = (syn::parse_quote! { Instruction::#ast_frag_name_ident(#ast_frag_name_ident{#(#ast_frag_args_idents: #ast_frag_args_idents),*}) => #stage_action, });
+      let item_struct: syn::ItemStruct = (syn::parse_quote! { pub struct #ast_frag_name_ident{ #args } });
+      parts.push((stage_name, instruction_arm, ast_frag_name_ident, item_struct, cycles));
     }
     let description = input.parse::<syn::LitStr>()?.value();
     return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: parts });
   }
 }
 
-#[derive(PartialEq,Eq)]
+#[derive(PartialEq,Eq,Clone)]
 struct Instruction {
   name: String,
   bitpattern: BitPattern,
   description: String,
-  parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ExprStruct, Timing)>,
+  parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ItemStruct, Timing)>,
 }
 
-#[derive(PartialEq,Eq)]
+#[derive(PartialEq,Eq,Clone)]
 struct BitPattern {
   pat: Vec<PatBit>,
 }
 
-#[derive(PartialEq,Eq,Debug)]
+#[derive(PartialEq,Eq,Debug,Clone)]
 enum PatBit {
   Zero,
   One,
@@ -449,6 +459,17 @@ impl Parse for ChipInfo {
   }
 }
 
+fn mkField(name: String, ty: syn::Type) -> syn::Field {
+  syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name, proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty }
+}
+fn mkFieldPat(name: String, binding: String) -> syn::FieldPat {
+  syn::FieldPat {
+    attrs: vec!(), member: syn::Member::Named(syn::Ident::new(&name, proc_macro2::Span::call_site())),
+    colon_token: Some(Token![:](proc_macro2::Span::call_site())),
+    pat: Box::new(syn::Pat::Ident(syn::PatIdent { attrs: vec!(), by_ref: None, mutability: None, ident: syn::Ident::new(&binding, proc_macro2::Span::call_site()), subpat: None, })),
+  }
+}
+
 
 #[proc_macro]
 pub fn define_chip(input: TokenStream) -> TokenStream {
@@ -481,16 +502,6 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       expr
     }
   }
-  fn mkField(name: String, ty: syn::Type) -> syn::Field {
-    syn::Field { attrs: vec!(), vis: syn::Visibility::Public(syn::VisPublic{pub_token: Token![pub](proc_macro2::Span::call_site())}), ident: Some(syn::Ident::new(&name, proc_macro2::Span::call_site())), colon_token: Some(Token![:](proc_macro2::Span::call_site())), ty: ty }
-  }
-  fn mkFieldPat(name: String, binding: String) -> syn::FieldPat {
-    syn::FieldPat {
-      attrs: vec!(), member: syn::Member::Named(syn::Ident::new(&name, proc_macro2::Span::call_site())),
-      colon_token: Some(Token![:](proc_macro2::Span::call_site())),
-      pat: Box::new(syn::Pat::Ident(syn::PatIdent { attrs: vec!(), by_ref: None, mutability: None, ident: syn::Ident::new(&binding, proc_macro2::Span::call_site()), subpat: None, })),
-    }
-  }
 
   let chip_info: ChipInfo = syn::parse(input).unwrap();
   let mod_name = format_ident!("{}", chip_info.name.clone());
@@ -515,7 +526,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   let mut encode: Vec<syn::Arm> = vec!();
   let encode_output_type = decode_input_type.clone();
   let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
-  for instr in chip_info.instructions.instructions.into_iter() {
+  for instr in chip_info.instructions.instructions.clone().into_iter() {
     let name = quote::format_ident!("{}", instr.name);
     let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
 
@@ -693,12 +704,27 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         pipelines.push(syn::parse_quote! { pub mod #module_name { use #real as #fn_name; } } );
       },
       Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => {
+        let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
+        let mut arms: Vec<syn::Arm> = vec!();
+        for instr in chip_info.instructions.instructions.iter() {
+          for (stage, arm, ident, item_struct, timing) in instr.parts.iter() {
+            if stage.clone() == module_name.to_string() {
+              println!("... {} ...", stage);
+              instruction_structs.push(item_struct.clone());
+              arms.push(arm.clone());
+            } else {
+              println!("Not matching {} {}", stage, module_name.to_string());
+            }
+          }
+        }
         pipelines.push(syn::parse_quote! {
           pub mod #module_name {
             pub enum Instruction {
             }
+            #(#instruction_structs);*
             pub fn #fn_name(input: #input) -> #out {
               match input {
+                #(#arms),*
                 _ => panic!(),
               }
             }
