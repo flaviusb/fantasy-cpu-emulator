@@ -99,44 +99,14 @@ impl Parse for Instruction {
       let pipeline_stage = input.parse::<syn::Ident>()?.to_string();
       input.parse::<Token![<-]>()?;
       let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
-      let stage_packed = input.parse::<syn::ExprClosure>()?;
-      let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
-      let (ast_frag_name_ident, ast_frag_args, stage_action) = match stage_packed {
-        syn::ExprClosure{attrs:_, asyncness: None, movability: None, capture: None, or1_token: syn::token::Or{..}, inputs: inputs, or2_token: syn::token::Or{..}, output: syn::ReturnType::Type(syn::token::RArrow{..}, name), body: body} => {
-          let ast_frag_name_ident = match *name {
-            syn::Type::Path(syn::TypePath{path: path, ..}) => path.get_ident().unwrap().clone(),
-            _                                              => panic!("bleh"),
-          };
-          let mut ast_frag_args: Vec<(syn::Ident, syn::Type)> = vec!();
-          for arg in inputs.iter() {
-            let (ident, ty) = match arg {
-              syn::Pat::Type(syn::PatType{pat: pat, ty: ty, ..}) => {
-                let ident = match &**pat {
-                  syn::Pat::Ident(syn::PatIdent{ident: ident, ..}) => ident.clone(),
-                  _                           => continue,
-                };
-                let ty2 = (**ty).clone();
-                args.push(mkField(ident.clone().to_string(), ty2.clone()));
-                (ident, ty2)
-              },
-              _                                                  => continue,
-            };
-            ast_frag_args.push((ident, ty));
-          }
-          (ast_frag_name_ident,ast_frag_args,*body)
-        },
-        _ => {input.parse::<Token![,]>()?; continue;},
-      };
+      let stage_arm = input.parse::<syn::Arm>()?;
+      input.parse::<Token![->]>()?;
+      let stage_arm_name = input.parse::<Ident>()?;
+      input.parse::<Token![->]>()?;
+      let stage_arm_struct = input.parse::<syn::ItemStruct>()?;
+
       input.parse::<Token![,]>()?;
-      let stage_name = ast_frag_name_ident.to_string();
-      let mut ast_frag_args_idents: Vec<syn::Ident> = vec!();
-      for (id, ty) in ast_frag_args.clone().iter() {
-        ast_frag_args_idents.push(id.clone());
-      }
-      let afai2 = ast_frag_args_idents.clone();
-      let instruction_arm: syn::Arm = (syn::parse_quote! { Instruction::#ast_frag_name_ident(#ast_frag_name_ident{#(#ast_frag_args_idents: #ast_frag_args_idents),*}) => #stage_action, });
-      let item_struct: syn::ItemStruct = (syn::parse_quote! { pub struct #ast_frag_name_ident{ #args } });
-      parts.push((stage_name, instruction_arm, ast_frag_name_ident, item_struct, cycles));
+      parts.push((pipeline_stage, stage_arm, stage_arm_name, stage_arm_struct, cycles));
     }
     let description = input.parse::<syn::LitStr>()?.value();
     return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: parts });
@@ -706,12 +676,18 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => {
         let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
         let mut arms: Vec<syn::Arm> = vec!();
+        let mut instruction_enum: syn::punctuated::Punctuated<syn::Variant, Token![,]> =  syn::punctuated::Punctuated::<syn::Variant, Token![,]>::new();
+        println!("PerInstruction {}", module_name);
         for instr in chip_info.instructions.instructions.iter() {
+          println!("instr: {}", instr.name);
           for (stage, arm, ident, item_struct, timing) in instr.parts.iter() {
             if stage.clone() == module_name.to_string() {
               println!("... {} ...", stage);
               instruction_structs.push(item_struct.clone());
               arms.push(arm.clone());
+              instruction_enum.push(syn::parse_quote! {
+                #ident(#ident)
+              });
             } else {
               println!("Not matching {} {}", stage, module_name.to_string());
             }
@@ -720,6 +696,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         pipelines.push(syn::parse_quote! {
           pub mod #module_name {
             pub enum Instruction {
+              #instruction_enum
             }
             #(#instruction_structs);*
             pub fn #fn_name(input: #input) -> #out {
