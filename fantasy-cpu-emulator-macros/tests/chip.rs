@@ -138,6 +138,6 @@ fn test_potato_instruction_encode() {
 
 #[test]
 fn test_presence_of_memory() {
-  let reg = test_potato::Memories::registers{ip:0};
-  assert_eq!(reg.ip, 0);
+  let mems = test_potato::Memories::t{registers: test_potato::Memories::registers{ip:0}, base:[0; 1024],};
+  assert_eq!(mems.registers.ip, 0);
 }
