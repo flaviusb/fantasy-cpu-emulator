@@ -668,11 +668,31 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     decode.push(syn::parse_quote! { _ if #guard => #result, });
     encode.push(syn::parse_quote! { super::Instruction::#name(#name { #(#encode_fields),* }) => #(#encoded_bit_segments)|*, });
   };
+  let mut predeclare_for_mems: Vec<syn::ItemStruct> = vec!();
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
   for mem in chip_info.memories.iter() {
-    // All memories are scratch for now
-    //mems.push(mkField(mem.name, 
+    let name = mem.name.clone();
+    let name_i = format_ident!("{}", mem.name.clone());
+    match &mem.kind {
+      MemoryType::Scratch(ScratchMemory{word_size: word_size, address_size: address_size, words: words}) => {
+        let (block, ..) = rationalise(syn::parse_quote!{ [u; #word_size] });
+        let mem_size = *words as usize;
+        mems.push(mkField(name, syn::parse_quote!{ [#block; #mem_size] }));
+      },
+      MemoryType::Register(registers) => {
+        let mut one_pre_mem: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
+        for reg in registers {
+          let word_size = reg.width;
+          let (block, ..) = rationalise(syn::parse_quote!{ [u; #word_size] });
+          one_pre_mem.push(mkField(reg.name.clone(), block));
+        }
+        predeclare_for_mems.push(syn::parse_quote! { pub struct #name_i { #one_pre_mem } });
+        mems.push(mkField(name.clone(), mkType(name)));
+      },
+    }
   }
+  println!("predeclare_for_mems = {:?}", predeclare_for_mems.clone());
+  println!("mems = {:?}", mems.clone());
   let mut pipelines: Vec<syn::Item> = vec!();
   for pipe in chip_info.pipeline.pipelines.iter() {
     match pipe {
@@ -734,8 +754,11 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     mod #mod_name {
       #(#decl_types)*
       #(#raw)*
-      pub struct Memories {
-
+      pub mod Memories {
+        #(#predeclare_for_mems)*
+        pub struct t {
+          #mems
+        }
       }
       pub mod Pipeline {
         #(#pipelines)*

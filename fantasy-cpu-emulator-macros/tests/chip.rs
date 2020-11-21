@@ -135,3 +135,9 @@ fn test_potato_instruction_encode() {
   assert_eq!(test_potato::Instructions::encode(test_potato::Instruction::Addis3(test_potato::Instructions::Addis3 { a: -2, b: 3, c: 1 } )), 0b00000000000000000000000000001010_10000011111000000000110000000001);
   assert_eq!(test_potato::Instructions::encode(test_potato::Instruction::AddI(  test_potato::Instructions::AddI   { a: 6, b: 16, c: 26, d: 685 } )), 0b00000000000000000000000000001111_10000001100100000110101010101101);
 }
+
+#[test]
+fn test_presence_of_memory() {
+  let reg = test_potato::Memories::registers{ip:0};
+  assert_eq!(reg.ip, 0);
+}
