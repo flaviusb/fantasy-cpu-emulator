@@ -91,7 +91,7 @@ struct Instructions {
 impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
-    let mut parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ItemStruct, Timing)> = vec!();
+    let mut parts: Vec<(Stage, syn::Arm, Option<(syn::Ident, syn::ItemStruct)>, Timing)> = vec!();
     input.parse::<Token![,]>()?;
     let bitpattern = input.parse::<BitPattern>()?;
     input.parse::<Token![,]>()?;
@@ -100,13 +100,19 @@ impl Parse for Instruction {
       input.parse::<Token![<-]>()?;
       let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
       let stage_arm = input.parse::<syn::Arm>()?;
-      input.parse::<Token![->]>()?;
-      let stage_arm_name = input.parse::<Ident>()?;
-      input.parse::<Token![->]>()?;
-      let stage_arm_struct = input.parse::<syn::ItemStruct>()?;
+      let name_and_struct = if input.peek(Token![->]) {
+        input.parse::<Token![->]>()?;
+        let stage_arm_name = input.parse::<Ident>()?;
+        input.parse::<Token![->]>()?;
+        let stage_arm_struct = input.parse::<syn::ItemStruct>()?;
+        Some((stage_arm_name, stage_arm_struct))
+      } else {
+        input.parse::<Token![*]>()?;
+        None
+      };
 
       input.parse::<Token![,]>()?;
-      parts.push((pipeline_stage, stage_arm, stage_arm_name, stage_arm_struct, cycles));
+      parts.push((pipeline_stage, stage_arm, name_and_struct, cycles));
     }
     let description = input.parse::<syn::LitStr>()?.value();
     return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: parts });
@@ -118,7 +124,7 @@ struct Instruction {
   name: String,
   bitpattern: BitPattern,
   description: String,
-  parts: Vec<(Stage, syn::Arm, syn::Ident, syn::ItemStruct, Timing)>,
+  parts: Vec<(Stage, syn::Arm, Option<(syn::Ident, syn::ItemStruct)>, Timing)>,
 }
 
 #[derive(PartialEq,Eq,Clone)]
@@ -680,24 +686,36 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         println!("PerInstruction {}", module_name);
         for instr in chip_info.instructions.instructions.iter() {
           println!("instr: {}", instr.name);
-          for (stage, arm, ident, item_struct, timing) in instr.parts.iter() {
+          for (stage, arm, ident_and_item_struct, timing) in instr.parts.iter() {
             if stage.clone() == module_name.to_string() {
               println!("... {} ...", stage);
-              instruction_structs.push(item_struct.clone());
               arms.push(arm.clone());
-              instruction_enum.push(syn::parse_quote! {
-                #ident(#ident)
-              });
+              match ident_and_item_struct {
+                None => {},
+                Some((ident, item_struct)) => {
+                  instruction_structs.push(item_struct.clone());
+                  instruction_enum.push(syn::parse_quote! {
+                    #ident(#ident)
+                  });
+                },
+              };
             } else {
               println!("Not matching {} {}", stage, module_name.to_string());
             }
           }
         }
-        pipelines.push(syn::parse_quote! {
-          pub mod #module_name {
+        let instruction_root_enum: Vec<syn::ItemEnum> = if instruction_enum.len() == 0 {
+          vec!()
+        } else {
+          vec!(syn::parse_quote! {
             pub enum Instruction {
               #instruction_enum
             }
+          })
+        };
+        pipelines.push(syn::parse_quote! {
+          pub mod #module_name {
+            #(#instruction_root_enum)*
             #(#instruction_structs);*
             pub fn #fn_name(input: #input) -> #out {
               match input {
