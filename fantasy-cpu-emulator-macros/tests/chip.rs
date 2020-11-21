@@ -11,7 +11,7 @@ define_chip! {
   ## Raw
 
   pub struct StateBundle {
-    pub change_pc: Option<mem>, pub memory_writes: Vec<MemoryWrite>,
+    pub change_pc: Option<U10>, pub memory_writes: Vec<MemoryWrite>,
   }
   pub struct MemoryWrite {
     pub address: U10, pub value: U36,
