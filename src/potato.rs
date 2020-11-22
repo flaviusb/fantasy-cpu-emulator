@@ -28,6 +28,10 @@ define_chip! {
       None    => None,
       Some(x) => Some(Pipeline::Decode::decode(x)),
     };
+    let mut assign_architectural_registers = match pipeline_outputs.1 {
+      None              => None,
+      Some(instruction) => Some(Pipeline::MemoryToArchitecturalRegisters::memory_to_architecture_registers(instruction)),
+    };
     panic!("tick not implemented.");
   }
 
