@@ -751,7 +751,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();
   let raw = chip_info.raw;
   (quote! {
-    mod #mod_name {
+    pub mod #mod_name {
       #(#decl_types)*
       #(#raw)*
       pub mod Memories {
