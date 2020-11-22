@@ -23,6 +23,11 @@ define_chip! {
   pub fn write_out_state(input: StateBundle) -> () {
   }
   pub fn tick(forward_by: u64, mem: Memories::t, pipeline_outputs: (Option<U36>, Option<Instruction>, Option<Pipeline::MemoryToArchitecturalRegisters::Instruction>, Option<StateBundle>)) -> (Memories::t, (Option<U36>, Option<Instruction>, Option<Pipeline::MemoryToArchitecturalRegisters::Instruction>, Option<StateBundle>)) {
+    let mut fetched = fetch(&mem, mem.registers.ip);
+    let mut decoded = match pipeline_outputs.0 {
+      None    => None,
+      Some(x) => Some(Pipeline::Decode::decode(x)),
+    };
     panic!("tick not implemented.");
   }
 
