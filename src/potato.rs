@@ -14,8 +14,11 @@ define_chip! {
   pub struct MemoryWrite {
     pub address: U10, pub value: U36,
   }
-  pub fn fetch(input: U10) -> U36 {
-    1
+  pub fn fetch(mem: &Memories::t, input: U10) -> U36 {
+    if input > 1023 {
+      panic!(format!("fetch from outside of bounds: {}", input));
+    }
+    mem.base[input as usize]
   }
   pub fn write_out_state(input: StateBundle) -> () {
   }
