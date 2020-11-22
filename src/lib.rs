@@ -1,10 +1,10 @@
-mod chip;
-mod sound;
+extern crate proc_macro;
+extern crate syn;
+#[macro_use] extern crate quote;
+extern crate proc_macro2;
 
-fn main() {
-    let mut chip: chip::Chip = chip::Chip {
-      scratch: chip::set_chip_mem(),
-      memstate: chip::set_chip_masks_paused(),
-    };
-    println!("Hello, world!");
-}
+#[macro_use] extern crate fantasy_cpu_emulator_macros;
+
+mod potato;
+use potato::potato_chip;
+
