@@ -21,6 +21,9 @@ define_chip! {
   }
   pub fn write_out_state(input: StateBundle) -> () {
   }
+  pub fn tick(forward_by: u64, mem: Memories::t, pipeline_outputs: (Option<U36>, Option<Instruction>, Option<Pipeline::MemoryToArchitecturalRegisters::Instruction>, Option<StateBundle>)) -> (Memories::t, (Option<U36>, Option<Instruction>, Option<Pipeline::MemoryToArchitecturalRegisters::Instruction>, Option<StateBundle>)) {
+    panic!("tick not implemented.");
+  }
 
   ## Memory
 
