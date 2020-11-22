@@ -697,7 +697,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   for pipe in chip_info.pipeline.pipelines.iter() {
     match pipe {
       Pipe::Use            { fn_name: fn_name, module_name: module_name, real: real } => {
-        pipelines.push(syn::parse_quote! { pub mod #module_name { use #real as #fn_name; } } );
+        pipelines.push(syn::parse_quote! { pub mod #module_name { pub use #real as #fn_name; } } );
       },
       Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => {
         let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
