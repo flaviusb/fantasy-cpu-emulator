@@ -8,3 +8,5 @@ extern crate proc_macro2;
 mod potato;
 use potato::potato_chip;
 
+mod unpipelined_potato;
+use unpipelined_potato::unpipelined_potato_chip;
