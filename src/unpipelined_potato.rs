@@ -9,24 +9,20 @@ define_chip! {
 
   type U10 = u16;
   type MachineState = (Instruction, Memories::t);
+  pub enum Work {
+    Fetching(u64, Memories::t,),
+    Computing(u64, Instruction, Memories::t,),
+    Waiting(Memories::t,),
+  }
   pub fn fetch(mem: &Memories::t, input: U10) -> U36 {
     if input > 1023 {
       panic!(format!("fetch from outside of bounds: {}", input));
     }
     mem.base[input as usize]
   }
-  /*pub fn tick(forward_by: u64, mem: Memories::t, pipeline_outputs: (Option<U36>, Option<Instruction>, Option<Pipeline::MemoryToArchitecturalRegisters::Instruction>, Option<StateBundle>)) -> (Memories::t, (Option<U36>, Option<Instruction>, Option<Pipeline::MemoryToArchitecturalRegisters::Instruction>, Option<StateBundle>)) {
-    let mut fetched = fetch(&mem, mem.registers.ip);
-    let mut decoded = match pipeline_outputs.0 {
-      None    => None,
-      Some(x) => Some(Pipeline::Decode::decode(x)),
-    };
-    let mut assign_architectural_registers = match pipeline_outputs.1 {
-      None              => None,
-      Some(instruction) => Some(Pipeline::MemoryToArchitecturalRegisters::memory_to_architecture_registers(instruction)),
-    };
+  pub fn tick(forward_by: u64, working: Work) -> Work {
     panic!("tick not implemented.");
-  }*/
+  }
 
   ## Memory
 
