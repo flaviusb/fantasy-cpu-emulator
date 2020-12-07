@@ -10,9 +10,9 @@ define_chip! {
   type U10 = u16;
   type MachineState = (Instruction, Memories::t);
   pub enum Work {
-    Fetching(u64, Memories::t,),
-    Computing(u64, Instruction, Memories::t,),
-    Waiting(Memories::t,),
+    Fetching{ progress: u64, mem: Memories::t,},
+    Computing{ progress: u64, instruction: Instruction, mem: Memories::t,},
+    Waiting{ mem: Memories::t,},
   }
   pub fn fetch(mem: &Memories::t, input: U10) -> U36 {
     if input > 1023 {
