@@ -738,18 +738,23 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             }
           })
         };
-        let timings_fn: Vec<syn::ItemFn> = if instruction_enum.len() == 0 {
-          vec!()
+        let instruction_ref: syn::Type = if instruction_enum.len() == 0 {
+          syn::parse_quote! {
+            super::super::Instruction
+          }
         } else {
-          vec!(syn::parse_quote! {
-            pub fn timing_from_instruction(instruction: Instruction) -> u32 {
-              match instruction {
-                #(#timing_arms)*
-                _ => panic!("Do not have timing information for {:?}", instruction),
-              }
-            }
-          })
+          syn::parse_quote! {
+            Instruction
+          }
         };
+        let timings_fn: Vec<syn::ItemFn> = vec!(syn::parse_quote! {
+          pub fn timing_from_instruction(instruction: #instruction_ref) -> u32 {
+            match instruction {
+              #(#timing_arms)*
+              _ => panic!("Do not have timing information for {:?}", instruction),
+            }
+          }
+        });
         pipelines.push(syn::parse_quote! {
           pub mod #module_name {
             #(#instruction_root_enum)*
