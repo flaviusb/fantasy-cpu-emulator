@@ -701,6 +701,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       },
       Pipe::PerInstruction { fn_name: fn_name, module_name: module_name, input: input, output: out }   => {
         let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
+        let mut timing_arms: Vec<syn::Arm> = vec!();
         let mut arms: Vec<syn::Arm> = vec!();
         let mut instruction_enum: syn::punctuated::Punctuated<syn::Variant, Token![,]> =  syn::punctuated::Punctuated::<syn::Variant, Token![,]>::new();
         println!("PerInstruction {}", module_name);
@@ -717,6 +718,9 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
                   instruction_enum.push(syn::parse_quote! {
                     #ident(#ident)
                   });
+                  timing_arms.push(syn::parse_quote! {
+                    Instruction::#ident(..) => #timing,
+                  });
                 },
               };
             } else {
@@ -728,15 +732,29 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           vec!()
         } else {
           vec!(syn::parse_quote! {
+            #[derive(Debug)]
             pub enum Instruction {
               #instruction_enum
+            }
+          })
+        };
+        let timings_fn: Vec<syn::ItemFn> = if instruction_enum.len() == 0 {
+          vec!()
+        } else {
+          vec!(syn::parse_quote! {
+            pub fn timing_from_instruction(instruction: Instruction) -> u32 {
+              match instruction {
+                #(#timing_arms)*
+                _ => panic!("Do not have timing information for {:?}", instruction),
+              }
             }
           })
         };
         pipelines.push(syn::parse_quote! {
           pub mod #module_name {
             #(#instruction_root_enum)*
-            #(#instruction_structs);*
+            #(#[derive(Debug)] #instruction_structs);*
+            #(#timings_fn)*
             pub fn #fn_name(input: #input) -> #out {
               match input {
                 #(#arms),*
