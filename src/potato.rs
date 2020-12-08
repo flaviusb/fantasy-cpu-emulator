@@ -57,6 +57,6 @@ define_chip! {
   ## Instructions
 
 
-  Nop,    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, MemoryToArchitecturalRegisters <- 1 super::super::Instruction::Nop(super::super::Instructions::Nop{}) => { Instruction::Nop(Nop{}) } -> Nop -> pub struct Nop {}, Compute <- 1 super::MemoryToArchitecturalRegisters::Instruction::Nop(super::MemoryToArchitecturalRegisters::Nop{}) => { super::super::StateBundle{change_pc: None, memory_writes: vec!()} } *,  "Nop."
+  Nop,    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, MemoryToArchitecturalRegisters <- 3 super::super::Instruction::Nop(super::super::Instructions::Nop{}) => { Instruction::Nop(Nop{}) } -> Nop -> pub struct Nop {}, Compute <- 2 super::MemoryToArchitecturalRegisters::Instruction::Nop(super::MemoryToArchitecturalRegisters::Nop{}) => { super::super::StateBundle{change_pc: None, memory_writes: vec!()} } -> Nop *,  "Nop."
 }
 

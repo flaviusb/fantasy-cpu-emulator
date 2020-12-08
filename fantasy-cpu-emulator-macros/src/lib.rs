@@ -91,7 +91,7 @@ struct Instructions {
 impl Parse for Instruction {
   fn parse(input: ParseStream) -> Result<Self> {
     let name = input.parse::<Ident>()?.to_string();
-    let mut parts: Vec<(Stage, syn::Arm, Option<(syn::Ident, syn::ItemStruct)>, Timing)> = vec!();
+    let mut parts: Vec<(Stage, syn::Arm, syn::Ident, Option<syn::ItemStruct>, Timing)> = vec!();
     input.parse::<Token![,]>()?;
     let bitpattern = input.parse::<BitPattern>()?;
     input.parse::<Token![,]>()?;
@@ -100,19 +100,18 @@ impl Parse for Instruction {
       input.parse::<Token![<-]>()?;
       let cycles = input.parse::<syn::LitInt>()?.base10_parse::<u32>()?;
       let stage_arm = input.parse::<syn::Arm>()?;
-      let name_and_struct = if input.peek(Token![->]) {
+      input.parse::<Token![->]>()?;
+      let stage_arm_name = input.parse::<Ident>()?;
+      let stage_arm_struct = if input.peek(Token![->]) {
         input.parse::<Token![->]>()?;
-        let stage_arm_name = input.parse::<Ident>()?;
-        input.parse::<Token![->]>()?;
-        let stage_arm_struct = input.parse::<syn::ItemStruct>()?;
-        Some((stage_arm_name, stage_arm_struct))
+        Some(input.parse::<syn::ItemStruct>()?)
       } else {
         input.parse::<Token![*]>()?;
         None
       };
 
       input.parse::<Token![,]>()?;
-      parts.push((pipeline_stage, stage_arm, name_and_struct, cycles));
+      parts.push((pipeline_stage, stage_arm, stage_arm_name, stage_arm_struct, cycles));
     }
     let description = input.parse::<syn::LitStr>()?.value();
     return Ok(Instruction { name: name, bitpattern: bitpattern, description: description, parts: parts });
@@ -124,7 +123,7 @@ struct Instruction {
   name: String,
   bitpattern: BitPattern,
   description: String,
-  parts: Vec<(Stage, syn::Arm, Option<(syn::Ident, syn::ItemStruct)>, Timing)>,
+  parts: Vec<(Stage, syn::Arm, syn::Ident, Option<syn::ItemStruct>, Timing)>,
 }
 
 #[derive(PartialEq,Eq,Clone)]
@@ -686,7 +685,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let (block, ..) = rationalise(syn::parse_quote!{ [u; #word_size] });
           one_pre_mem.push(mkField(reg.name.clone(), block));
         }
-        predeclare_for_mems.push(syn::parse_quote! { pub struct #name_i { #one_pre_mem } });
+        predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone)] pub struct #name_i { #one_pre_mem } });
         mems.push(mkField(name.clone(), mkType(name)));
       },
     }
@@ -707,13 +706,18 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         println!("PerInstruction {}", module_name);
         for instr in chip_info.instructions.instructions.iter() {
           println!("instr: {}", instr.name);
-          for (stage, arm, ident_and_item_struct, timing) in instr.parts.iter() {
+          for (stage, arm, ident, stage_arm_struct, timing) in instr.parts.iter() {
             if stage.clone() == module_name.to_string() {
               println!("... {} ...", stage);
               arms.push(arm.clone());
-              match ident_and_item_struct {
-                None => {},
-                Some((ident, item_struct)) => {
+              match stage_arm_struct {
+                None => {
+                  timing_arms.push(syn::parse_quote! {
+                    super::super::Instruction::#ident(..) => #timing,
+                  });
+                  println!("Timing arms: {:?}", timing_arms.clone());
+                },
+                Some(item_struct) => {
                   instruction_structs.push(item_struct.clone());
                   instruction_enum.push(syn::parse_quote! {
                     #ident(#ident)
@@ -721,6 +725,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
                   timing_arms.push(syn::parse_quote! {
                     Instruction::#ident(..) => #timing,
                   });
+                  println!("Timing arms: {:?}", timing_arms.clone());
                 },
               };
             } else {
@@ -732,7 +737,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           vec!()
         } else {
           vec!(syn::parse_quote! {
-            #[derive(Debug)]
+            #[derive(Debug, Clone)]
             pub enum Instruction {
               #instruction_enum
             }
@@ -758,7 +763,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         pipelines.push(syn::parse_quote! {
           pub mod #module_name {
             #(#instruction_root_enum)*
-            #(#[derive(Debug)] #instruction_structs);*
+            #(#[derive(Debug, Clone)] #instruction_structs);*
             #(#timings_fn)*
             pub fn #fn_name(input: #input) -> #out {
               match input {
@@ -779,6 +784,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       #(#raw)*
       pub mod Memories {
         #(#predeclare_for_mems)*
+        #[derive(Debug,PartialEq,Eq,Clone)]
         pub struct t {
           #mems
         }
@@ -801,9 +807,9 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             x => panic!(format!("Could not encode instruction: {:#?}", x)),
           }
         }
-        #(#instruction_structs)*
+        #(#[derive(Clone)] #instruction_structs)*
       }
-      #[derive(Debug,PartialEq,Eq)]
+      #[derive(Debug,PartialEq,Eq,Clone)]
       pub enum Instruction {
         #instruction_seq
       }
