@@ -7,7 +7,6 @@ define_chip! {
 
   ## Raw
 
-  type U10 = u16;
   type MachineState = (Instruction, Memories::t);
   #[derive(Debug,PartialEq,Eq,Clone)]
   pub enum Work {
@@ -90,6 +89,7 @@ define_chip! {
 
 
   Nop,    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, BackEnd <- 1 (super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
+  AddIS,  1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS(super::super::Instructions::AddIS{a, b, c}), mems) => { use super::super::fetch; let (m, n) = (fetch(&mems, a), fetch(&mems, b)); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = m + n; new_mems } -> AddIS *,  "Add integer signed."
 }
 
 #[test]
@@ -104,4 +104,16 @@ fn run_nops() {
   let new_mems_2 = up::get_mem(tick_2);
   assert_eq!(mems_output, new_mems);
   assert_eq!(mems_output_2, new_mems_2);
+}
+
+#[test]
+fn run_add() {
+  use unpipelined_potato_chip as up;
+  let mut mems = up::Memories::t{registers: up::Memories::registers{ip:0}, base:[0; 1024],};
+  mems.base[0] = up::Instructions::encode(up::Instruction::AddIS(up::Instructions::AddIS{a: 2, b: 3, c: 4}));
+  mems.base[2] = 5;
+  mems.base[3] = 10;
+  let tick_1 = up::begin_tick(6, mems);
+  let mems_out = up::get_mem(tick_1);
+  assert_eq!(mems_out.base[4], 15);
 }
