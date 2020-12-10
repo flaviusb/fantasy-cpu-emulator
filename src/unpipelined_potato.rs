@@ -89,7 +89,8 @@ define_chip! {
 
 
   Nop,    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, BackEnd <- 1 (super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
-  AddIS,  1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS(super::super::Instructions::AddIS{a, b, c}), mems) => { use super::super::fetch; let (m, n) = (fetch(&mems, a), fetch(&mems, b)); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = m + n; new_mems } -> AddIS *,  "Add integer signed."
+  AddIS,  1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS(super::super::Instructions::AddIS{a, b, c}), mems) => { use super::super::fetch; let (m, n) = (i64::from_be_bytes(fetch(&mems, a).to_be_bytes()), i64::from_be_bytes(fetch(&mems, b).to_be_bytes())); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64::from_be_bytes((m + n).to_be_bytes()); new_mems } -> AddIS *,  "Add integer signed."
+  AddIU,  1 0 0 1 0 1 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIU(super::super::Instructions::AddIU{a, b, c}), mems) => { use super::super::fetch; let (m, n) = (fetch(&mems, a), fetch(&mems, b)); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = m + n; new_mems } -> AddIU *,  "Add integer unsigned."
 }
 
 #[test]
