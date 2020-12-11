@@ -137,4 +137,28 @@ fn run_add() {
   let tick_1 = up::begin_tick(6, mems);
   let mems_out = up::get_mem(tick_1);
   assert_eq!(mems_out.base[4], 15);
+}#[test]
+
+fn run_adds() {
+  use unpipelined_potato_chip as up;
+  let mut mems = up::Memories::t{registers: up::Memories::registers{ip:0}, base:[0; 1024],};
+  mems.base[0]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 6,  b: 7,  c: 20}));
+  mems.base[1]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 7,  b: 7,  c: 21}));
+  mems.base[2]  = up::Instructions::encode(up::Instruction::AddIU36(up::Instructions::AddIU36{a: 20, b: 7,  c: 22}));
+  mems.base[3]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 8,  b: 7,  c: 23}));
+  mems.base[4]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 8,  b: 9,  c: 24}));
+  mems.base[5]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 24, b: 10, c: 25}));
+  mems.base[6]  = 5;
+  mems.base[7]  = 10;
+  mems.base[8]  = up::i64_to_u36(-2);
+  mems.base[9]  = up::i64_to_u36(-3);
+  mems.base[10] = up::i64_to_u36(-1024);
+  let tick_1 = up::begin_tick(36, mems);
+  let mems_out = up::get_mem(tick_1);
+  assert_eq!(mems_out.base[20], 15);
+  assert_eq!(mems_out.base[21], 20);
+  assert_eq!(mems_out.base[22], 25);
+  assert_eq!(mems_out.base[23],  8);
+  assert_eq!(up::u36_to_i64(mems_out.base[24]), -5);
+  assert_eq!(up::u36_to_i64(mems_out.base[25]), -1029);
 }
