@@ -49,7 +49,6 @@ define_chip! {
         },
         Work::Computing { progress, instruction, mem } => {
           let timing = Pipeline::BackEnd::timing_from_instruction(instruction.clone());
-          //dbg!("Computing, progress {} against timing {}", progress, timing);
           if timing < progress {
             panic!("Computing took too long for {:?}.", instruction);
           }
@@ -66,6 +65,27 @@ define_chip! {
     } else {
       working
     }
+  }
+  pub fn u36_to_u64(from: U36) -> u64 {
+    from
+  }
+  pub fn u64_to_u36(from: u64) -> U36 {
+    (from & ((1 << 36) - 1))
+  }
+  pub fn u36_to_i64(from: U36) -> i64 {
+    // Sign extend, then transmute
+    let test_bit = (1 << 35);
+    if (from & test_bit) == test_bit {
+      let sign_extension: u64 = (((1u128 << 64) - 1) as u64) ^ ((1 << 36) - 1);
+      i64::from_ne_bytes(u64::to_ne_bytes(from | sign_extension))
+    } else {
+      i64::from_ne_bytes(from.to_ne_bytes())
+    }
+  }
+  pub fn i64_to_u36(from: i64) -> U36 {
+    // We don't need to worry about sign extension, as trucation works
+    // So we convert into raw and then mask
+    (u64::from_ne_bytes(i64::to_ne_bytes(from)) & ((1 << 36) - 1))
   }
 
   ## Memory
@@ -89,8 +109,8 @@ define_chip! {
 
 
   Nop,    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, BackEnd <- 1 (super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
-  AddIS,  1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS(super::super::Instructions::AddIS{a, b, c}), mems) => { use super::super::fetch; let (m, n) = (i64::from_be_bytes(fetch(&mems, a).to_be_bytes()), i64::from_be_bytes(fetch(&mems, b).to_be_bytes())); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64::from_be_bytes((m + n).to_be_bytes()); new_mems } -> AddIS *,  "Add integer signed."
-  AddIU,  1 0 0 1 0 1 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIU(super::super::Instructions::AddIU{a, b, c}), mems) => { use super::super::fetch; let (m, n) = (fetch(&mems, a), fetch(&mems, b)); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = m + n; new_mems } -> AddIU *,  "Add integer unsigned."
+  AddIS36,  1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS36(super::super::Instructions::AddIS36{a, b, c}), mems) => { use super::super::{fetch, u36_to_i64, i64_to_u36}; let (m, n) = (u36_to_i64(fetch(&mems, a)), u36_to_i64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = i64_to_u36(m + n); new_mems } -> AddIS36 *,  "Add 36 bit signed integer."
+  AddIU36,  1 0 0 1 0 1 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIU36(super::super::Instructions::AddIU36{a, b, c}), mems) => { use super::super::{fetch, u36_to_u64, u64_to_u36}; let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64_to_u36(m + n); new_mems } -> AddIU36 *,  "Add 36-bit unsigned integer."
 }
 
 #[test]
@@ -111,7 +131,7 @@ fn run_nops() {
 fn run_add() {
   use unpipelined_potato_chip as up;
   let mut mems = up::Memories::t{registers: up::Memories::registers{ip:0}, base:[0; 1024],};
-  mems.base[0] = up::Instructions::encode(up::Instruction::AddIS(up::Instructions::AddIS{a: 2, b: 3, c: 4}));
+  mems.base[0] = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 2, b: 3, c: 4}));
   mems.base[2] = 5;
   mems.base[3] = 10;
   let tick_1 = up::begin_tick(6, mems);
