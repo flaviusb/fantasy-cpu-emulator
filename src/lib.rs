@@ -10,3 +10,6 @@ use potato::potato_chip;
 
 mod unpipelined_potato;
 use unpipelined_potato::unpipelined_potato_chip;
+
+mod jackfruit;
+use jackfruit::jackfruit_chip;
