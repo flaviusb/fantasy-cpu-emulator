@@ -129,6 +129,22 @@ define_chip! {
   AddIU36Sat,   1 0 1 0 0 0 0 0 1 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 5 (super::super::Instruction::AddIU36Sat(super::super::Instructions::AddIU36Sat{a, b, c}), mems) => { use super::super::{fetch, u36_to_u64, u64_to_u36, clampU}; let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64_to_u36(clampU(m + n, (1 << 36) - 1)); new_mems } -> AddIU36Sat *,  "Add 36-bit unsigned integer."
   AddIS32SatZ,  1 0 1 0 0 0 0 1 0 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 5 (super::super::Instruction::AddIS32SatZ(super::super::Instructions::AddIS32SatZ{a, b, c}), mems) => { use super::super::{fetch, u36_to_i64, i64_to_u36, clampS}; let (m, n) = (u36_to_i64(fetch(&mems, a)) & ((1 << 32) - 1), u36_to_i64(fetch(&mems, b)) & ((1 << 32) - 1)); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = i64_to_u36(clampS(m + n, (1 << 31) - 1, - (1 << 31))); new_mems } -> AddIS32SatZ *,  "Add 32 bit signed integer, zeroing the high bits."
   AddIU32SatZ,  1 0 1 0 0 0 0 1 1 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 5 (super::super::Instruction::AddIU32SatZ(super::super::Instructions::AddIU32SatZ{a, b, c}), mems) => { use super::super::{fetch, u36_to_u64, u64_to_u36, clampU}; let (m, n) = (u36_to_u64(fetch(&mems, a)) & ((1 << 32) - 1), u36_to_u64(fetch(&mems, b)) & ((1 << 32) - 1)); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64_to_u36(clampU(m + n, (1 << 32) - 1)); new_mems } -> AddIU32SatZ *,  "Add 32-bit unsigned integer, zeroing the high bits."
+  AddIS32SatP,  1 0 1 0 0 0 1 0 0 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 6 (super::super::Instruction::AddIS32SatP(super::super::Instructions::AddIS32SatP{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_i64, i64_to_u36, clampS};
+    let (m, n, o_high) = (u36_to_i64(fetch(&mems, a) & ((1 << 32) - 1)), u36_to_i64(fetch(&mems, b) & ((1 << 32) - 1)), fetch(&mems, c) & (((1 << 36) - 1) ^ ((1 << 32) - 1)));
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    new_mems.base[c as usize] = o_high | i64_to_u36(clampS(m + n, (1 << 31) - 1, - (1 << 31)));
+    new_mems
+  } -> AddIS32SatP *,  "Add 32 bit signed integer, preserving the high bits in the destination."
+  AddIU32SatP,  1 0 1 0 0 0 1 0 1 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 6 (super::super::Instruction::AddIU32SatP(super::super::Instructions::AddIU32SatP{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36, clampU};
+    let (m, n, o_high) = (u36_to_u64(fetch(&mems, a) & ((1 << 32) - 1)), u36_to_u64(fetch(&mems, b) & ((1 << 32) - 1)), fetch(&mems, c) & (((1 << 36) - 1) ^ ((1 << 32) - 1)));
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    new_mems.base[c as usize] = u64_to_u36(o_high | clampU(m + n, (1 << 32) - 1));
+    new_mems
+  } -> AddIU32SatP *,  "Add 32-bit unsigned integer, preserving the high bits in the destination."
 }
 
 #[test]
