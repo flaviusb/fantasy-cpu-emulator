@@ -87,6 +87,22 @@ define_chip! {
     // So we convert into raw and then mask
     (u64::from_ne_bytes(i64::to_ne_bytes(from)) & ((1 << 36) - 1))
   }
+  pub fn clampU(from: u64, max: u64) -> u64 {
+    if from > max {
+      max
+    } else {
+      from
+    }
+  }
+  pub fn clampS(from: i64, max: i64, min: i64) -> i64 {
+    if from > max {
+      max
+    } else if from < min {
+      min
+    } else {
+      from
+    }
+  }
 
   ## Memory
 
@@ -108,9 +124,9 @@ define_chip! {
   ## Instructions
 
 
-  Nop,    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, BackEnd <- 1 (super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
-  AddIS36,  1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS36(super::super::Instructions::AddIS36{a, b, c}), mems) => { use super::super::{fetch, u36_to_i64, i64_to_u36}; let (m, n) = (u36_to_i64(fetch(&mems, a)), u36_to_i64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = i64_to_u36(m + n); new_mems } -> AddIS36 *,  "Add 36 bit signed integer."
-  AddIU36,  1 0 0 1 0 1 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIU36(super::super::Instructions::AddIU36{a, b, c}), mems) => { use super::super::{fetch, u36_to_u64, u64_to_u36}; let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64_to_u36(m + n); new_mems } -> AddIU36 *,  "Add 36-bit unsigned integer."
+  Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, BackEnd <- 1 (super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
+  AddIS36Sat,   1 0 0 1 0 0 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIS36Sat(super::super::Instructions::AddIS36Sat{a, b, c}), mems) => { use super::super::{fetch, u36_to_i64, i64_to_u36, clampS}; let (m, n) = (u36_to_i64(fetch(&mems, a)), u36_to_i64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = i64_to_u36(clampS(m + n, (1 << 35) - 1, - (1 << 35))); new_mems } -> AddIS36Sat *,  "Add 36 bit signed integer."
+  AddIU36Sat,   1 0 0 1 0 1 a:[u; 10] b:[u; 10] c:[u; 10], BackEnd <- 5 (super::super::Instruction::AddIU36Sat(super::super::Instructions::AddIU36Sat{a, b, c}), mems) => { use super::super::{fetch, u36_to_u64, u64_to_u36, clampU}; let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b))); let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = u64_to_u36(clampU(m + n, (1 << 36) - 1)); new_mems } -> AddIU36Sat *,  "Add 36-bit unsigned integer."
 }
 
 #[test]
@@ -126,39 +142,49 @@ fn run_nops() {
   assert_eq!(mems_output, new_mems);
   assert_eq!(mems_output_2, new_mems_2);
 }
-
 #[test]
 fn run_add() {
   use unpipelined_potato_chip as up;
   let mut mems = up::Memories::t{registers: up::Memories::registers{ip:0}, base:[0; 1024],};
-  mems.base[0] = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 2, b: 3, c: 4}));
+  mems.base[0] = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 2, b: 3, c: 4}));
   mems.base[2] = 5;
   mems.base[3] = 10;
   let tick_1 = up::begin_tick(6, mems);
   let mems_out = up::get_mem(tick_1);
   assert_eq!(mems_out.base[4], 15);
-}#[test]
-
+}
+#[test]
+fn roundtrip_signed_ints() {
+  use unpipelined_potato_chip as up;
+  assert_eq!(up::u36_to_i64(up::i64_to_u36(-(1 << 35))), -(1 << 35));
+}
+#[test]
 fn run_adds() {
   use unpipelined_potato_chip as up;
   let mut mems = up::Memories::t{registers: up::Memories::registers{ip:0}, base:[0; 1024],};
-  mems.base[0]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 6,  b: 7,  c: 20}));
-  mems.base[1]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 7,  b: 7,  c: 21}));
-  mems.base[2]  = up::Instructions::encode(up::Instruction::AddIU36(up::Instructions::AddIU36{a: 20, b: 7,  c: 22}));
-  mems.base[3]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 8,  b: 7,  c: 23}));
-  mems.base[4]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 8,  b: 9,  c: 24}));
-  mems.base[5]  = up::Instructions::encode(up::Instruction::AddIS36(up::Instructions::AddIS36{a: 24, b: 10, c: 25}));
-  mems.base[6]  = 5;
-  mems.base[7]  = 10;
-  mems.base[8]  = up::i64_to_u36(-2);
-  mems.base[9]  = up::i64_to_u36(-3);
-  mems.base[10] = up::i64_to_u36(-1024);
-  let tick_1 = up::begin_tick(36, mems);
+  mems.base[0]  = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 16,  b: 17,  c: 30}));
+  mems.base[1]  = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 17,  b: 17,  c: 31}));
+  mems.base[2]  = up::Instructions::encode(up::Instruction::AddIU36Sat(up::Instructions::AddIU36Sat{a: 30, b: 17,  c: 32}));
+  mems.base[3]  = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 18,  b: 17,  c: 33}));
+  mems.base[4]  = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 18,  b: 19,  c: 34}));
+  mems.base[5]  = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 34, b: 20, c: 35}));
+  mems.base[6]  = up::Instructions::encode(up::Instruction::AddIS36Sat(up::Instructions::AddIS36Sat{a: 14, b: 14, c: 36}));
+  mems.base[7]  = up::Instructions::encode(up::Instruction::AddIU36Sat(up::Instructions::AddIU36Sat{a: 15, b: 15, c: 37}));
+  mems.base[14]  = up::i64_to_u36(-(1 << 35) + 1);
+  mems.base[15]  = (1 << 36) - 1;
+  mems.base[16]  = 5;
+  mems.base[17]  = 10;
+  mems.base[18]  = up::i64_to_u36(-2);
+  mems.base[19]  = up::i64_to_u36(-3);
+  mems.base[20] = up::i64_to_u36(-1024);
+  let tick_1 = up::begin_tick(48, mems);
   let mems_out = up::get_mem(tick_1);
-  assert_eq!(mems_out.base[20], 15);
-  assert_eq!(mems_out.base[21], 20);
-  assert_eq!(mems_out.base[22], 25);
-  assert_eq!(mems_out.base[23],  8);
-  assert_eq!(up::u36_to_i64(mems_out.base[24]), -5);
-  assert_eq!(up::u36_to_i64(mems_out.base[25]), -1029);
+  assert_eq!(mems_out.base[30], 15);
+  assert_eq!(mems_out.base[31], 20);
+  assert_eq!(mems_out.base[32], 25);
+  assert_eq!(mems_out.base[33],  8);
+  assert_eq!(up::u36_to_i64(mems_out.base[34]), -5);
+  assert_eq!(up::u36_to_i64(mems_out.base[35]), -1029);
+  assert_eq!(up::u36_to_i64(mems_out.base[36]), -(1 << 35));
+  assert_eq!(up::u36_to_u64(mems_out.base[37]), (1 << 36) - 1);
 }
