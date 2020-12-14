@@ -87,6 +87,13 @@ define_chip! {
     // So we convert into raw and then mask
     (u64::from_ne_bytes(i64::to_ne_bytes(from)) & ((1 << 36) - 1))
   }
+  pub fn u36_to_i32(from: U36) -> i32 {
+    let small = (from & ((1<<32)-1)) as u32;
+    i32::from_ne_bytes(u32::to_ne_bytes(small))
+  }
+  pub fn i32_to_u36(from: i32) -> U36 {
+    u32::from_ne_bytes(i32::to_ne_bytes(from)) as u64
+  }
   pub fn clampU(from: u64, max: u64) -> u64 {
     if from > max {
       max
@@ -146,17 +153,17 @@ define_chip! {
     new_mems
   } -> AddIU32SatP *,  "Add 32-bit unsigned integer, preserving the high bits in the destination."
   AddIS32SatF,  1 0 1 0 0 0 1 1 0 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 6 (super::super::Instruction::AddIS32SatF(super::super::Instructions::AddIS32SatF{a, b, c}), mems) => {
-    use super::super::{fetch, u36_to_i64, i64_to_u36, clampS};
-    let (m, n) = (u36_to_i64(fetch(&mems, a) & ((1 << 32) - 1)), u36_to_i64(fetch(&mems, b) & ((1 << 32) - 1)));
+    use super::super::{fetch, u36_to_i32, i32_to_u36};
+    let (m, n) = (u36_to_i32(fetch(&mems, a)), u36_to_i32(fetch(&mems, b)));
     let mut new_mems = mems;
     new_mems.registers.ip += 1;
-    let clamped_result = clampS(m + n, (1 << 31) - 1, - (1 << 31));
-    let flags = if (m + n) != clamped_result {
+    let res = m.saturating_add(n);
+    let flags = if m.checked_add(n) == None {
       (1 << 35)
     } else {
       0
     };
-    new_mems.base[c as usize] = flags | i64_to_u36(clamped_result);
+    new_mems.base[c as usize] = flags | i32_to_u36(res);
     new_mems
   } -> AddIS32SatF *,  "Add 32 bit signed integer, with flags in the high bits."
   AddIU32SatF,  1 0 1 0 0 0 1 1 1 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 6 (super::super::Instruction::AddIU32SatF(super::super::Instructions::AddIU32SatF{a, b, c}), mems) => {
@@ -207,6 +214,11 @@ fn roundtrip_signed_ints() {
 #[test]
 fn run_adds() {
   use jackfruit_chip as jc;
+  fn split_flags_i64(from: u64) -> (u8, i64) {
+    let flags = (0b1111 & (from >> 32)) as u8;
+    let out   = jc::u36_to_i64(from & ((1<<32) - 1));
+    (flags, out)
+  }
   let mut mems = jc::Memories::t{registers: jc::Memories::registers{ip:0}, base:[0; 512],};
   mems.base[0]  = jc::Instructions::encode(jc::Instruction::AddIS36Sat(jc::Instructions::AddIS36Sat{a: 116,  b: 117,  c: 230}));
   mems.base[1]  = jc::Instructions::encode(jc::Instruction::AddIS36Sat(jc::Instructions::AddIS36Sat{a: 117,  b: 117,  c: 231}));
@@ -220,15 +232,20 @@ fn run_adds() {
   mems.base[9]  = jc::Instructions::encode(jc::Instruction::AddIS32SatF(jc::Instructions::AddIS32SatF{a: 114, b: 114, c: 239}));
   mems.base[10] = jc::Instructions::encode(jc::Instruction::AddIU32SatF(jc::Instructions::AddIU32SatF{a: 115, b: 115, c: 240}));
   mems.base[11] = jc::Instructions::encode(jc::Instruction::AddIU32SatF(jc::Instructions::AddIU32SatF{a: 121, b: 121, c: 241}));
+  mems.base[12] = jc::Instructions::encode(jc::Instruction::AddIS32SatF(jc::Instructions::AddIS32SatF{a: 122, b: 122, c: 242}));
+  mems.base[13] = jc::Instructions::encode(jc::Instruction::AddIS32SatF(jc::Instructions::AddIS32SatF{a: 123, b: 124, c: 243}));
   mems.base[114]  = jc::i64_to_u36(-(1 << 35) + 1);
   mems.base[115]  = (1 << 36) - 1;
   mems.base[116]  = 5;
   mems.base[117]  = 10;
   mems.base[118]  = jc::i64_to_u36(-2);
   mems.base[119]  = jc::i64_to_u36(-3);
-  mems.base[120] = jc::i64_to_u36(-1024);
+  mems.base[120]  = jc::i64_to_u36(-1024);
   mems.base[121]  = (1 << 32) - 1;
-  let tick_1 = jc::begin_tick(75, mems);
+  mems.base[122]  = jc::i64_to_u36(- (1 << 31));
+  mems.base[123]  = 0;
+  mems.base[124]  = (1 << 31) - 1;
+  let tick_1 = jc::begin_tick(89, mems);
   let mems_out = jc::get_mem(tick_1);
   assert_eq!(mems_out.base[230], 15);
   assert_eq!(mems_out.base[231], 20);
@@ -240,6 +257,10 @@ fn run_adds() {
   assert_eq!(jc::u36_to_u64(mems_out.base[237]), (1 << 36) - 1);
   assert_eq!(jc::u36_to_u64(mems_out.base[238]), (1 << 32) - 1);
   //assert_eq!(jc::u36_to_u64(mems_out.base[239]), (1 << 32) - 1);
-  //assert_eq!(jc::u36_to_u64(mems_out.base[240]), (1 << 32) - 1);
+  //assert_eq!(split_flags_i64(jc::u36_to_u64(mems_out.base[239])), (0b1000, 2));
+  let flag = split_flags_i64(jc::u36_to_u64(mems_out.base[242])).0;
+  let out = jc::u36_to_i32(mems_out.base[242]);
+  assert_eq!((flag, out), (0b1000, i32::MIN));
   assert_eq!(jc::u36_to_u64(mems_out.base[241]), (1 << 35) | ((1 << 32) - 1));
+  assert_eq!(jc::u36_to_u64(mems_out.base[243]), ((1 << 31) - 1));
 }
