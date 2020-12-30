@@ -685,7 +685,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let (block, ..) = rationalise(syn::parse_quote!{ [u; #word_size] });
           one_pre_mem.push(mkField(reg.name.clone(), block));
         }
-        predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone)] pub struct #name_i { #one_pre_mem } });
+        predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone,Copy)] pub struct #name_i { #one_pre_mem } });
         mems.push(mkField(name.clone(), mkType(name)));
       },
     }
@@ -784,7 +784,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       #(#raw)*
       pub mod Memories {
         #(#predeclare_for_mems)*
-        #[derive(Debug,PartialEq,Eq,Clone)]
+        #[derive(Debug,PartialEq,Eq,Clone,Copy)]
         pub struct t {
           #mems
         }
