@@ -690,8 +690,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
       },
     }
   }
-  println!("predeclare_for_mems = {:?}", predeclare_for_mems.clone());
-  println!("mems = {:?}", mems.clone());
+  //println!("predeclare_for_mems = {:?}", predeclare_for_mems.clone());
+  //println!("mems = {:?}", mems.clone());
   let mut pipelines: Vec<syn::Item> = vec!();
   for pipe in chip_info.pipeline.pipelines.iter() {
     match pipe {
@@ -703,19 +703,19 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         let mut timing_arms: Vec<syn::Arm> = vec!();
         let mut arms: Vec<syn::Arm> = vec!();
         let mut instruction_enum: syn::punctuated::Punctuated<syn::Variant, Token![,]> =  syn::punctuated::Punctuated::<syn::Variant, Token![,]>::new();
-        println!("PerInstruction {}", module_name);
+        //println!("PerInstruction {}", module_name);
         for instr in chip_info.instructions.instructions.iter() {
-          println!("instr: {}", instr.name);
+          //println!("instr: {}", instr.name);
           for (stage, arm, ident, stage_arm_struct, timing) in instr.parts.iter() {
             if stage.clone() == module_name.to_string() {
-              println!("... {} ...", stage);
+              //println!("... {} ...", stage);
               arms.push(arm.clone());
               match stage_arm_struct {
                 None => {
                   timing_arms.push(syn::parse_quote! {
                     super::super::Instruction::#ident(..) => #timing,
                   });
-                  println!("Timing arms: {:?}", timing_arms.clone());
+                  //println!("Timing arms: {:?}", timing_arms.clone());
                 },
                 Some(item_struct) => {
                   instruction_structs.push(item_struct.clone());
@@ -725,11 +725,11 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
                   timing_arms.push(syn::parse_quote! {
                     Instruction::#ident(..) => #timing,
                   });
-                  println!("Timing arms: {:?}", timing_arms.clone());
+                  //println!("Timing arms: {:?}", timing_arms.clone());
                 },
               };
             } else {
-              println!("Not matching {} {}", stage, module_name.to_string());
+              //println!("Not matching {} {}", stage, module_name.to_string());
             }
           }
         }
