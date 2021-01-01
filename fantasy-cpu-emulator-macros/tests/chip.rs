@@ -144,3 +144,12 @@ fn test_presence_of_memory() {
   let mems = test_potato::Memories::t{registers: test_potato::Memories::registers{ip:0}, base:[0; 1024],};
   assert_eq!(mems.registers.ip, 0);
 }
+
+#[test]
+fn test_assembler() {
+  assert_eq!(test_potato::Instruction::Nop(test_potato::Instructions::Nop {  } ), test_potato::Instructions::from_string("Nop", vec!()));
+  assert_eq!(test_potato::Instruction::AddI(test_potato::Instructions::AddI     { a: 0,  b: 0, c: 0, d: 0 } ), test_potato::Instructions::from_string("AddI", vec!("0", "0", "0", "0")));
+  assert_eq!(test_potato::Instruction::AddI(test_potato::Instructions::AddI     { a: 1,  b: 2, c: 3, d: 4 } ), test_potato::Instructions::from_string("AddI", vec!("1", "2", "3", "4")));
+  assert_eq!(test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0,  b: 0, c: 0       } ), test_potato::Instructions::from_string("Addisl", vec!("0",  "0", "0")));
+  assert_eq!(test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 10, b: 3, c: 99      } ), test_potato::Instructions::from_string("Addisl", vec!("10", "3", "99")));
+}

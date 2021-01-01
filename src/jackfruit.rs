@@ -488,3 +488,132 @@ fn run_adds() {
   assert_eq!(jc::u36_to_u64(mems_out.base[241]), (1 << 35) | ((1 << 32) - 1));
   assert_eq!(jc::u36_to_u64(mems_out.base[243]), ((1 << 31) - 1));
 }
+
+fn assemble(text: String) -> [u64; 512] {
+  use jackfruit_chip as jc;
+  use std::collections::HashMap;
+  #[derive(Debug,PartialEq,Eq,Clone)]
+  enum Arg {
+    Lit(u64),
+    Pos(String),
+    Offset(String, i64),
+  };
+  #[derive(Debug,PartialEq,Eq,Clone)]
+  enum Thing {
+    Op(String, Vec<Arg>),
+    Raw(u64),
+  };
+  #[derive(Debug,PartialEq,Eq,Clone)]
+  struct Line {
+    position: Option<String>,
+    thing: Thing,
+  };
+  let mut chunks: Vec<Vec<Line>> = vec!();
+  let mut accumulator: Vec<Line> = vec!();
+  for line in text.split('\n') {
+    if line == "???" {
+      chunks.push(accumulator.clone());
+      accumulator = vec!();
+      continue;
+    }
+    // First check to see if we have a location
+    let split: Vec<&str> = line.split(": ").collect();
+    let (position, rest) = match split.len() {
+      1 => (None, split[0].to_string()),
+      2 => (Some(split[0].to_string()), split[1].to_string()),
+      _ => panic!("Could not understand {:?}", split),
+    };
+    // Then try 'raw number'
+    match u64::from_str_radix(&rest, 10) {
+      Ok(num) => accumulator.push(Line { position, thing: Thing::Raw(num) }),
+      Err(_)  => {
+        // Not a number; assume Op
+        let op_stuff = rest.split(",").map(|r| r.trim().to_string()).collect::<Vec<String>>();
+        let op_zero = op_stuff[0].clone();
+        if op_stuff.len() == 1 {
+          accumulator.push(Line { position, thing: Thing::Op(op_zero, vec!()) });
+        } else {
+          let op_acc = op_stuff[1..op_stuff.len()].into_iter().map(|x| x.to_string()).collect::<Vec<String>>();
+          let arg_acc = op_acc.iter().map(|x| {
+            match u64::from_str_radix(x, 10) {
+              Ok(num) => Arg::Lit(num),
+              Err(_)  => {
+                // Test for Offset; otherwise Pos
+                if x.contains("+") {
+                  let things = x.split("+").collect::<Vec<&str>>();
+                  Arg::Offset(things[0].to_string(), i64::from_str_radix(things[1], 10).unwrap())
+                } else if x.contains("-") {
+                  let things = x.split("-").collect::<Vec<&str>>();
+                  Arg::Offset(things[0].to_string(), -(i64::from_str_radix(things[1], 10).unwrap()))
+                } else {
+                  Arg::Pos(x.to_string())
+                }
+              },
+            }
+          } ).collect();
+          accumulator.push(Line { position, thing: Thing::Op(op_zero, arg_acc) });
+        }
+      },
+    }
+  }
+  if accumulator.len() != 0 {
+    chunks.push(accumulator);
+  }
+  // For now, we just flatten rather than floating
+  let flattened: Vec<Line> = chunks.iter().flatten().map(|x| x.clone()).collect();
+  let mut locations: HashMap<String, u64> = HashMap::new();
+  let mut idx: u64 = 0;
+  for line in flattened.iter() {
+    match line {
+      Line { position: Some(pos), .. } => locations.insert(pos.to_string(), idx),
+      _ => None,
+    };
+    idx += 1;
+  }
+  let mut mem = [0u64; 512];
+  idx = 0;
+
+  for line in flattened.iter() {
+    match line {
+      Line { thing: Thing::Raw(num) , .. }    => mem[idx as usize] = *num,
+      Line { thing: Thing::Op(op, args), .. } => {
+        let args_fixup: Vec<String> = args.iter().map(|arg| match arg {
+          Arg::Lit(num)         => (num.to_string()),
+          Arg::Pos(pos)         => (locations.get(pos).unwrap().to_string()),
+          Arg::Offset(pos, off) => (((*locations.get(pos).unwrap() as i64) + off).to_string()),
+        }).collect();
+        let real_fixup = args_fixup.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
+        mem[idx as usize] = jc::Instructions::encode(jc::Instructions::from_string(op, real_fixup));
+      },
+    };
+    idx += 1;
+  }
+
+  mem
+}
+
+#[test]
+fn test_assembler() {
+  use jackfruit_chip as jc;
+  let code = String::from(
+"87
+8
+Nop
+Nop
+AddIS36Sat, x, 12, out+1
+Nop
+x: 999
+out: AddIU32SatF, 1, 2, out+2");
+  let obj = assemble(code);
+  let mut mems = [0u64; 512];
+  mems[0] = 87;
+  mems[1] = 8;
+  mems[4] = jc::Instructions::encode(jc::Instruction::AddIS36Sat(jc::Instructions::AddIS36Sat{a: 6,  b: 12,  c: 8}));
+  mems[6] = 999;
+  mems[7] = jc::Instructions::encode(jc::Instruction::AddIU32SatF(jc::Instructions::AddIU32SatF{a: 1,  b: 2,  c: 9}));
+  assert_eq!(mems, obj);
+}
+
+// AddIS36Sat x, 12, out + 1
+// ???
+// out: 0
