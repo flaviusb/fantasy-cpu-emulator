@@ -500,9 +500,11 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   let decode_input_type = mkType(format!("U{}", chip_info.instruction_width));
   let mut encode: Vec<syn::Arm> = vec!();
   let encode_output_type = decode_input_type.clone();
+  let mut from_string: Vec<syn::Arm> = vec!();
   let mut instruction_structs: Vec<syn::ItemStruct> = vec!();
   for instr in chip_info.instructions.instructions.clone().into_iter() {
-    let name = quote::format_ident!("{}", instr.name);
+    let name = quote::format_ident!("{}", instr.name.clone());
+    let name_string = instr.name.clone();
     let mut args: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
 
     // This does two things; it populates args and it also builds up an Arm which will eventually be pushed into decode
@@ -512,6 +514,8 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     let mut fields: Vec<syn::FieldValue> = vec!();
     let mut encoded_bit_segments: Vec<syn::Expr> = vec!(); // Each segment of the instruction goes in here, and they are or-ed together
     let mut encode_fields: Vec<syn::FieldPat> = vec!();
+    let mut from_string_fields: Vec<syn::FieldValue> = vec!();
+    let mut n: usize = instr.bitpattern.pat.iter().filter(|n| match n { PatBit::Var(_) => true, _ => false, }).collect::<Vec<&PatBit>>().len();
 
     for pat in instr.bitpattern.pat.iter() {
       match pat {
@@ -625,9 +629,12 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
               variable_getter
             },
           };
+          //println!("Variable getter for field {} of instruction {} with n={}", name.clone(), instr.name.clone(), n);
           let field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name.clone()), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: variable_getter.clone() };
           //println!("Variable getter for field {} of instruction {}: {}", name, instr.name.clone(), (variable_getter.clone()).to_token_stream());
           fields.push(field);
+          let from_string_field: syn::FieldValue = syn::FieldValue { attrs: vec!(), member: syn::Member::Named(name.clone()), colon_token: Some(Token![:](proc_macro2::Span::call_site())), expr: syn::parse_quote! { #ty2::from_str_radix(args[#n-1], 10).unwrap() } };
+          from_string_fields.push(from_string_field);
 
           // For encoding, mask and left shift
           let instruction_width = chip_info.instruction_width;
@@ -645,6 +652,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           encoded_bit_segments.push(encoded_bit_segment);
 
           encode_fields.push(mkFieldPat(name.clone().to_string(), name.clone().to_string()));
+          n = n - 1;
         },
       }
     }
@@ -666,6 +674,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     let result: syn::Expr = (syn::parse_quote! { super::Instruction::#name(#name { #(#fields),* }) });
     decode.push(syn::parse_quote! { _ if #guard => #result, });
     encode.push(syn::parse_quote! { super::Instruction::#name(#name { #(#encode_fields),* }) => #(#encoded_bit_segments)|*, });
+    from_string.push(syn::parse_quote! { #name_string => super::Instruction::#name(#name { #(#from_string_fields),* }), })
   };
   let mut predeclare_for_mems: Vec<syn::ItemStruct> = vec!();
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
@@ -805,6 +814,12 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           match input {
             #(#encode)*
             x => panic!(format!("Could not encode instruction: {:#?}", x)),
+          }
+        }
+        pub fn from_string(input: &str, args: Vec<&str>) -> super::Instruction {
+          match input {
+            #(#from_string)*
+            x => panic!(format!("Could not convert string {} with args {:?} to instruction", x, args)),
           }
         }
         #(#[derive(Clone)] #instruction_structs)*
