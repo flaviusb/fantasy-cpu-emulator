@@ -203,7 +203,424 @@ define_chip! {
 
 
   Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, CheckStall <- 0 (instruction @ super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { super::super::Work::Computing { progress: 0, instruction, mem: mems } } -> Nop *, BackEnd <- 1 (super::super::Instruction::Nop(super::super::Instructions::Nop{}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
-  //F,          1 0 0 0 0 0 0 0 0 a:[u; 9] b:[u; 9] c:[u; 9], BackEnd <- 1 (super::super::Instruction::F(super::super::Instructions::f{a, b, c}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
+  F,            1 0 0 0 0 0 0 0 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::F(super::super::Instructions::F{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::F(super::super::Instructions::F{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> F *, BackEnd <- 1 (super::super::Instruction::F(super::super::Instructions::F{a, b, c}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = 0; new_mems } -> F *,  "F."
+  Nor,          1 0 0 0 0 0 0 0 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Nor(super::super::Instructions::Nor{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Nor(super::super::Instructions::Nor{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Nor *, BackEnd <- 1 (super::super::Instruction::Nor(super::super::Instructions::Nor{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(!(m | n));
+    new_mems
+  } -> Nor *,  "Nor."
+  Xq,           1 0 0 0 0 0 0 1 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Xq(super::super::Instructions::Xq{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Xq(super::super::Instructions::Xq{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Xq *, BackEnd <- 1 (super::super::Instruction::Xq(super::super::Instructions::Xq{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36((!m) & n);
+    new_mems
+  } -> Xq *,  "Xq."
+  Notp,         1 0 0 0 0 0 0 1 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Notp(super::super::Instructions::Notp{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Notp(super::super::Instructions::Notp{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Notp *, BackEnd <- 1 (super::super::Instruction::Notp(super::super::Instructions::Notp{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(!m);
+    new_mems
+  } -> Notp *,  "Notp."
+  MaterialNonimplication, 1 0 0 0 0 0 1 0 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::MaterialNonimplication(super::super::Instructions::MaterialNonimplication{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::MaterialNonimplication(super::super::Instructions::MaterialNonimplication{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> MaterialNonimplication *, BackEnd <- 1 (super::super::Instruction::MaterialNonimplication(super::super::Instructions::MaterialNonimplication{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(m & !n);
+    new_mems
+  } -> MaterialNonimplication *,  "MaterialNonimplication."
+  Notq,         1 0 0 0 0 0 1 0 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Notq(super::super::Instructions::Notq{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Notq(super::super::Instructions::Notq{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Notq *, BackEnd <- 1 (super::super::Instruction::Notq(super::super::Instructions::Notq{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(!n);
+    new_mems
+  } -> Notq *,  "Notq."
+  Xor,          1 0 0 0 0 0 1 1 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Xor(super::super::Instructions::Xor{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Xor(super::super::Instructions::Xor{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Xor *, BackEnd <- 1 (super::super::Instruction::Xor(super::super::Instructions::Xor{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(m ^ n);
+    new_mems
+  } -> Xor *,  "Xor."
+  Nand,         1 0 0 0 0 0 1 1 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Nand(super::super::Instructions::Nand{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Nand(super::super::Instructions::Nand{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Nand *, BackEnd <- 1 (super::super::Instruction::Nand(super::super::Instructions::Nand{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(!(m & n));
+    new_mems
+  } -> Nand *,  "Nand."
+  And,          1 0 0 0 0 1 0 0 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::And(super::super::Instructions::And{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::And(super::super::Instructions::And{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> And *, BackEnd <- 1 (super::super::Instruction::And(super::super::Instructions::And{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(m & n);
+    new_mems
+  } -> And *,  "And."
+  Xnor,         1 0 0 0 0 1 0 0 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Xnor(super::super::Instructions::Xnor{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Xnor(super::super::Instructions::Xnor{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Xnor *, BackEnd <- 1 (super::super::Instruction::Xnor(super::super::Instructions::Xnor{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(!(m ^ n));
+    new_mems
+  } -> Xnor *,  "Xnor."
+  Q,            1 0 0 0 0 1 0 1 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Q(super::super::Instructions::Q{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Q(super::super::Instructions::Q{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Q *, BackEnd <- 1 (super::super::Instruction::Q(super::super::Instructions::Q{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(n);
+    new_mems
+  } -> Q *,  "Q."
+  IfThen,       1 0 0 0 0 1 0 1 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::IfThen(super::super::Instructions::IfThen{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::IfThen(super::super::Instructions::IfThen{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> IfThen *, BackEnd <- 1 (super::super::Instruction::IfThen(super::super::Instructions::IfThen{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(!m | n);
+    new_mems
+  } -> IfThen *,  "IfThen."
+  P,            1 0 0 0 0 1 1 0 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::P(super::super::Instructions::P{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::P(super::super::Instructions::P{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> P *, BackEnd <- 1 (super::super::Instruction::P(super::super::Instructions::P{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(m);
+    new_mems
+  } -> P *,  "P."
+  ThenIf,       1 0 0 0 0 1 1 0 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::ThenIf(super::super::Instructions::ThenIf{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::ThenIf(super::super::Instructions::ThenIf{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> ThenIf *, BackEnd <- 1 (super::super::Instruction::ThenIf(super::super::Instructions::ThenIf{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(m | !n);
+    new_mems
+  } -> ThenIf *,  "ThenIf."
+  Or,           1 0 0 0 0 1 1 1 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Or(super::super::Instructions::Or{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Or(super::super::Instructions::Or{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> Or *, BackEnd <- 1 (super::super::Instruction::Or(super::super::Instructions::Or{a, b, c}), mems) => {
+    use super::super::{fetch, u36_to_u64, u64_to_u36};
+    let mut new_mems = mems;
+    new_mems.registers.ip += 1;
+    let (m, n) = (u36_to_u64(fetch(&mems, a)), u36_to_u64(fetch(&mems, b)));
+    new_mems.base[c as usize] = u64_to_u36(m | n);
+    new_mems
+  } -> Or *,  "Or."
+  T,            1 0 0 0 0 1 1 1 1 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::T(super::super::Instructions::T{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::T(super::super::Instructions::T{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(a);
+      }
+      if b_1 {
+        blocker.push(b);
+      }
+      if c_1 {
+        blocker.push(c);
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: vec!(blocker) }
+    }
+  } -> T *, BackEnd <- 1 (super::super::Instruction::T(super::super::Instructions::T{a, b, c}), mems) => { let mut new_mems = mems; new_mems.registers.ip += 1; new_mems.base[c as usize] = !0; new_mems } -> T *,  "T."
   AddIS36Sat,   1 0 1 0 0 0 0 0 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::AddIS36Sat(super::super::Instructions::AddIS36Sat{a, b, c}), mems) => { 
     use super::super::{get_stalled};
     let instruction = super::super::Instruction::AddIS36Sat(super::super::Instructions::AddIS36Sat{a, b, c});
@@ -612,6 +1029,70 @@ out: AddIU32SatF, 1, 2, out+2");
   mems[6] = 999;
   mems[7] = jc::Instructions::encode(jc::Instruction::AddIU32SatF(jc::Instructions::AddIU32SatF{a: 1,  b: 2,  c: 9}));
   assert_eq!(mems, obj);
+}
+
+#[test]
+fn bitops() {
+  use jackfruit_chip as jc;
+  let code = String::from(
+"F, a, b, out
+F, a+1, b+1, out+1
+F, a+2, b+2, out+2
+Nor, a, b, out+3
+Nor, a+1, b+1, out+4
+Nor, a+2, b+2, out+5
+Xq, a, b, out+6
+Xq, a+1, b+1, out+7
+Xq, a+2, b+2, out+8
+Notp, a, b, out+9
+Notp, a+1, b+1, out+10
+Notp, a+2, b+2, out+11
+MaterialNonimplication, a, b, out+12
+MaterialNonimplication, a+1, b+1, out+13
+MaterialNonimplication, a+2, b+2, out+14
+Notq, a, b, out+15
+Notq, a+1, b+1, out+16
+Notq, a+2, b+2, out+17
+Xor, a, b, out+18
+Xor, a+1, b+1, out+19
+Xor, a+2, b+2, out+20
+Nand, a, b, out+21
+Nand, a+1, b+1, out+22
+Nand, a+2, b+2, out+23
+And, a, b, out+24
+And, a+1, b+1, out+25
+And, a+2, b+2, out+26
+Xnor, a, b, out+27
+Xnor, a+1, b+1, out+28
+Xnor, a+2, b+2, out+29
+Q, a, b, out+30
+Q, a+1, b+1, out+31
+Q, a+2, b+2, out+32
+IfThen, a, b, out+33
+IfThen, a+1, b+1, out+34
+IfThen, a+2, b+2, out+35
+P, a, b, out+36
+P, a+1, b+1, out+37
+P, a+2, b+2, out+38
+ThenIf, a, b, out+39
+ThenIf, a+1, b+1, out+40
+ThenIf, a+2, b+2, out+41
+Or, a, b, out+42
+Or, a+1, b+1, out+43
+Or, a+2, b+2, out+44
+T, a, b, out+45
+T, a+1, b+1, out+46
+T, a+2, b+2, out+47
+a: 0
+123456
+999994291
+b: 40000
+50000
+857643295
+out: 0");
+  let obj = jc::Memories::t{registers: jc::Memories::registers{ip:1}, base:assemble(code), stall:[0; 512],};
+  let progress = jc::begin_tick(16 * 3 * 2, obj);
+  assert_eq!(jc::Memories::t { base: [34372347446, 34372610103, 34372872760, 34506565177, 34506827834, 34507090491, 34640782908, 34641045565, 34641308222, 34775000639, 34775263296, 34775525953, 34909218370, 34909481027, 34909743684, 35043436101, 35043698758, 35043961415, 35177653832, 35177916489, 35178179146, 35311871563, 35312134220, 35312396877, 35446089294, 35446351951, 35446614608, 35580307025, 35580569682, 35580832339, 35714524756, 35714787413, 35715050070, 35848742487, 35849005144, 35849267801, 35982960218, 35983222875, 35983485532, 36117177949, 36117440606, 36117703263, 36251395680, 36251658337, 36251920994, 36385613411, 36385876068, 36386138725, 0, 123456, 999994291, 40000, 50000, 857643295, 0, 0, 0, 68719436735, 68719353007, 67719218240, 40000, 272, 264204, 68719476735, 68719353279, 67719482444, 0, 73728, 142615200, 68719436735, 68719426735, 67861833440, 40000, 74000, 142879404, 68719476735, 68719427007, 67862097644, 0, 49728, 857379091, 68719436735, 68719402735, 68576597331, 40000, 50000, 857643295, 68719476735, 68719403007, 68576861535, 0, 123456, 999994291, 68719436735, 68719476463, 68719212531, 40000, 123728, 1000258495, 18446744073709551615, 18446744073709551615, 18446744073709551615, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], stall: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], registers: jc::Memories::registers { ip: 49 } }, jc::get_mem(progress));
 }
 
 // AddIS36Sat x, 12, out + 1
