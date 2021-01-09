@@ -821,6 +821,43 @@ define_chip! {
     new_mems.base[c as usize] = u64_to_u36(flags | clamped_result);
     new_mems
   } -> AddIU32SatF *,  "Add 32-bit unsigned integer, with flags in the high bits."
+  Jump,         1 1 0 0 0 0 0 0 0 a:[u; 9] b:[u; 9] c:[u; 9], CheckStall <- 0 (super::super::Instruction::Jump(super::super::Instructions::Jump{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let instruction = super::super::Instruction::Jump(super::super::Instructions::Jump{a, b, c});
+    let (a_1, b_1, c_1) = (get_stalled(mems, a), get_stalled(mems, b), get_stalled(mems, c));
+    if !(a_1 | b_1 | c_1) {
+      super::super::Work::Computing { progress: 0, instruction, mem: mems }
+    } else {
+      let mut blocker = vec!();
+      if a_1 {
+        blocker.push(vec!(a));
+      }
+      if b_1 {
+        blocker.push(vec!(b));
+      }
+      if c_1 {
+        blocker.push(vec!(c));
+      }
+      super::super::Work::StalledComputing { forward_by: 0, progress: 0, instruction, mem: mems, waiting_on: blocker }
+    }
+  } -> Jump *, BackEnd <- 1 (super::super::Instruction::Jump(super::super::Instructions::Jump{a, b, c}), mems) => {
+    use super::super::{get_stalled};
+    let mut new_mems = mems;
+    // Go through each jump location, and jump to the first non-stall location
+    let location = if !get_stalled(mems, a) {
+      a
+    } else if !get_stalled(mems, b) {
+      b
+    } else if !get_stalled(mems, c) {
+      c
+    } else {
+      panic!("Jump at {} failed due to invalid stall at {} {} {}", mems.registers.ip, a, b, c);
+    };
+    new_mems.registers.ip = location;
+    println!("Jump from {} to {}", mems.registers.ip, new_mems.registers.ip);
+    new_mems
+  } -> Jump *,  "Jump."
+
 }
 
 #[test]
@@ -1120,4 +1157,52 @@ out: 1");
   ], registers: jc::Memories::registers { ip: 48 } }, jc::get_mem(progress));
 }
 
+#[test]
+fn test_jumps() {
+  use jackfruit_chip as jc;
+  let code = String::from(
+"start: Jump, 2, 300, 500
+Jump, 500, 400, 450
+Jump, then, 400, 500
+Jump, 310, 410, 510
+6
+F, data, data, start
+then: AddIS36Sat, data, data, start+1
+AddIS36Sat, data, data, start+2
+Jump, next, start, start
+P, data, data+1, out
+next: Q, data, data+1, out+1
+Jump, 30, 0, 0
+data: 5
+2
+out: 3");
+  let obj = jc::Memories::t{registers: jc::Memories::registers{ip:0}, base:assemble(code), stall:[0; 512],};
+  let progress = jc::begin_tick(16 * 3 * 2 + 4, obj);
+  assert_eq!(jc::Memories::t { base: [
+    51540285940, 10, 10, 51621082622, 6, 34362890240, 42952824833, 42952824834, 51542228992, 35973503502, 35705068047, 51547471872, 5, 2, 3, 2,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ],
+  stall: [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ], registers: jc::Memories::registers { ip: 69 } }, jc::get_mem(progress));
+}
 
