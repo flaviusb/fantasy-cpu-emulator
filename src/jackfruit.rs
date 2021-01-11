@@ -982,12 +982,12 @@ fn assemble(text: String) -> [u64; 512] {
       Ok(num) => accumulator.push(Line { position, thing: Thing::Raw(num) }),
       Err(_)  => {
         // Not a number; assume Op
-        let op_stuff = rest.split(",").map(|r| r.trim().to_string()).collect::<Vec<String>>();
+        let op_stuff = rest.splitn(2, " ").map(|r| r.trim().to_string()).collect::<Vec<String>>();
         let op_zero = op_stuff[0].clone();
         if op_stuff.len() == 1 {
           accumulator.push(Line { position, thing: Thing::Op(op_zero, vec!()) });
         } else {
-          let op_acc = op_stuff[1..op_stuff.len()].into_iter().map(|x| x.to_string()).collect::<Vec<String>>();
+          let op_acc = op_stuff[1].split(",").map(|r| r.trim().to_string()).collect::<Vec<String>>().into_iter().map(|x| x.to_string()).collect::<Vec<String>>();
           let arg_acc = op_acc.iter().map(|x| {
             match u64::from_str_radix(x, 10) {
               Ok(num) => Arg::Lit(num),
@@ -1054,10 +1054,10 @@ fn test_assembler() {
 8
 Nop
 Nop
-AddIS36Sat, x, 12, out+1
+AddIS36Sat x, 12, out+1
 Nop
 x: 999
-out: AddIU32SatF, 1, 2, out+2");
+out: AddIU32SatF 1, 2, out+2");
   let obj = assemble(code);
   let mut mems = [0u64; 512];
   mems[0] = 87;
@@ -1072,54 +1072,54 @@ out: AddIU32SatF, 1, 2, out+2");
 fn test_bitops() {
   use jackfruit_chip as jc;
   let code = String::from(
-"F, a, b, out
-F, a+1, b+1, out+1
-F, a+2, b+2, out+2
-Nor, a, b, out+3
-Nor, a+1, b+1, out+4
-Nor, a+2, b+2, out+5
-Xq, a, b, out+6
-Xq, a+1, b+1, out+7
-Xq, a+2, b+2, out+8
-Notp, a, b, out+9
-Notp, a+1, b+1, out+10
-Notp, a+2, b+2, out+11
-MaterialNonimplication, a, b, out+12
-MaterialNonimplication, a+1, b+1, out+13
-MaterialNonimplication, a+2, b+2, out+14
-Notq, a, b, out+15
-Notq, a+1, b+1, out+16
-Notq, a+2, b+2, out+17
-Xor, a, b, out+18
-Xor, a+1, b+1, out+19
-Xor, a+2, b+2, out+20
-Nand, a, b, out+21
-Nand, a+1, b+1, out+22
-Nand, a+2, b+2, out+23
-And, a, b, out+24
-And, a+1, b+1, out+25
-And, a+2, b+2, out+26
-Xnor, a, b, out+27
-Xnor, a+1, b+1, out+28
-Xnor, a+2, b+2, out+29
-Q, a, b, out+30
-Q, a+1, b+1, out+31
-Q, a+2, b+2, out+32
-IfThen, a, b, out+33
-IfThen, a+1, b+1, out+34
-IfThen, a+2, b+2, out+35
-P, a, b, out+36
-P, a+1, b+1, out+37
-P, a+2, b+2, out+38
-ThenIf, a, b, out+39
-ThenIf, a+1, b+1, out+40
-ThenIf, a+2, b+2, out+41
-Or, a, b, out+42
-Or, a+1, b+1, out+43
-Or, a+2, b+2, out+44
-T, a, b, out+45
-T, a+1, b+1, out+46
-T, a+2, b+2, out+47
+"F a, b, out
+F a+1, b+1, out+1
+F a+2, b+2, out+2
+Nor a, b, out+3
+Nor a+1, b+1, out+4
+Nor a+2, b+2, out+5
+Xq a, b, out+6
+Xq a+1, b+1, out+7
+Xq a+2, b+2, out+8
+Notp a, b, out+9
+Notp a+1, b+1, out+10
+Notp a+2, b+2, out+11
+MaterialNonimplication a, b, out+12
+MaterialNonimplication a+1, b+1, out+13
+MaterialNonimplication a+2, b+2, out+14
+Notq a, b, out+15
+Notq a+1, b+1, out+16
+Notq a+2, b+2, out+17
+Xor a, b, out+18
+Xor a+1, b+1, out+19
+Xor a+2, b+2, out+20
+Nand a, b, out+21
+Nand a+1, b+1, out+22
+Nand a+2, b+2, out+23
+And a, b, out+24
+And a+1, b+1, out+25
+And a+2, b+2, out+26
+Xnor a, b, out+27
+Xnor a+1, b+1, out+28
+Xnor a+2, b+2, out+29
+Q a, b, out+30
+Q a+1, b+1, out+31
+Q a+2, b+2, out+32
+IfThen a, b, out+33
+IfThen a+1, b+1, out+34
+IfThen a+2, b+2, out+35
+P a, b, out+36
+P a+1, b+1, out+37
+P a+2, b+2, out+38
+ThenIf a, b, out+39
+ThenIf a+1, b+1, out+40
+ThenIf a+2, b+2, out+41
+Or a, b, out+42
+Or a+1, b+1, out+43
+Or a+2, b+2, out+44
+T a, b, out+45
+T a+1, b+1, out+46
+T a+2, b+2, out+47
 a: 0
 123456
 999994291
@@ -1161,18 +1161,18 @@ out: 1");
 fn test_jumps() {
   use jackfruit_chip as jc;
   let code = String::from(
-"start: Jump, 2, 300, 500
-Jump, 500, 400, 450
-Jump, then, 400, 500
-Jump, 310, 410, 510
+"start: Jump 2, 300, 500
+Jump 500, 400, 450
+Jump then, 400, 500
+Jump 310, 410, 510
 6
-F, data, data, start
-then: AddIS36Sat, data, data, start+1
-AddIS36Sat, data, data, start+2
-Jump, next, start, start
-P, data, data+1, out
-next: Q, data, data+1, out+1
-Jump, 30, 0, 0
+F data, data, start
+then: AddIS36Sat data, data, start+1
+AddIS36Sat data, data, start+2
+Jump next, start, start
+P data, data+1, out
+next: Q data, data+1, out+1
+Jump 30, 0, 0
 data: 5
 2
 out: 3");
@@ -1210,18 +1210,18 @@ out: 3");
 fn test_jumps_stall() {
   use jackfruit_chip as jc;
   let code = String::from(
-"start: Jump, 2, then-1, 500
-Jump, 500, 400, 450
-Jump, then, 400, 500
-Jump, 310, 410, 510
+"start: Jump 2, then-1, 500
+Jump 500, 400, 450
+Jump then, 400, 500
+Jump 310, 410, 510
 6
-F, data, data, start
-then: AddIS36Sat, data, data, start+1
-AddIS36Sat, data, data, start+2
-Jump, next, start, start
-P, data, data+1, out
-next: Q, data, data+1, out+1
-Jump, 30, 0, 0
+F data, data, start
+then: AddIS36Sat data, data, start+1
+AddIS36Sat data, data, start+2
+Jump next, start, start
+P data, data+1, out
+next: Q data, data+1, out+1
+Jump 30, 0, 0
 data: 5
 2
 out: 3");
@@ -1256,18 +1256,18 @@ out: 3");
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ], registers: jc::Memories::registers { ip: 7 } }, jc::get_mem(progress));
   let code2 = String::from(
-"start: Jump, 2, then-1, 500
-Jump, 500, 400, 450
-Jump, then, 400, 500
-Jump, 310, 410, 510
+"start: Jump 2, then-1, 500
+Jump 500, 400, 450
+Jump then, 400, 500
+Jump 310, 410, 510
 6
-F, data, data, start
-then: AddIS36Sat, data, data, start+1
-AddIS36Sat, data, data, start+3
-Jump, next, start, start
-P, data, data+1, out
-next: Q, data, data+1, out+1
-Jump, 30, 0, 0
+F data, data, start
+then: AddIS36Sat data, data, start+1
+AddIS36Sat data, data, start+3
+Jump next, start, start
+P data, data+1, out
+next: Q data, data+1, out+1
+Jump 30, 0, 0
 data: 5
 2
 out: 3");
