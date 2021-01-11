@@ -2,6 +2,7 @@
 name = "fantasy-cpu-emulator"
 version = "0.1.0"
 authors = ["Justin (:flaviusb) Marsh <justin.marsh@flaviusb.net>"]
+edition = "2018"
 
 [dependencies]
 fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
@@ -11,3 +12,11 @@ proc-macro2 = "*"
 
 [workspace]
 # members = ["fantasy-cpu-emulator-macros"]
+
+[[bin]]
+name = "fantasy-assembler"
+path = "src/bin/fantasy_assembler.rs"
+
+[[bin]]
+name = "fantasy-emulator"
+path = "src/bin/fantasy_emulator.rs"
