@@ -943,7 +943,7 @@ fn run_adds() {
   assert_eq!(jc::u36_to_u64(mems_out.base[243]), ((1 << 31) - 1));
 }
 
-fn assemble(text: String) -> [u64; 512] {
+pub fn assemble(text: String) -> [u64; 512] {
   use jackfruit_chip as jc;
   use std::collections::HashMap;
   #[derive(Debug,PartialEq,Eq,Clone)]
