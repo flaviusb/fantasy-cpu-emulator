@@ -12,3 +12,5 @@ If you have a relatively recent Rust (1.47 or later) you should be able to insta
 
 No, I have got part of the Jackfruit chip working, but not any of the other chips or any of the emulation of other hardware.
 
+There is an assembler binary distributed with this - `fantasy-assembler`. The fantasy emulator binary is just a stub so far.
+

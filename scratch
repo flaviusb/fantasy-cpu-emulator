@@ -1,0 +1,80 @@
+A = top
+B = side
+
+or
+
+ |0  1
+-+-----
+0|0  1
+ |
+1|1  1
+
+nor
+
+ |0  1
+-+-----
+0|1  0
+ |
+1|0  0
+
+orn
+
+ |0  1
+-+-----
+0|1  1
+ |
+1|1  0
+
+Current status: So ⌜orn⌝ is ⌜⊃⌝.
+
+and
+
+ |0  1
+-+-----
+0|0  0
+ |
+1|0  1
+
+andn
+
+ |0  1
+-+-----
+0|0  1
+ |
+1|0  0
+
+All 16 binary logical ops: l r dest
+
+Add, sub
+integer signed, integer unsigned
+36 bit, 32 bit zeroing high, 32 bit preserve high, 32 bit flags (sat/carry) high, 2 × packed 16 bit flags high, 4 × 8 packed bit flags high
+saturating
+
+and also
+add, sub
+fp signed
+36 bit, 32 bit flags high, 32 bit zeroing high, 32 bit preserve high 
+saturating
+
+mul, div
+integer signed, integer unsigned, fp signed
+36 bit, 32 bit zeroing high, 32 bit flags high
+saturating
+
+jumps
+
+set jump priority queue on unstall dest1 dest2 dest3
+try jumps if unstalled: dest1 dest2 dest3
+jump if equal: l r dest
+jump if not equal: l r dest
+jump if eq imm: imm src dest
+
+bitops
+
+popcnt
+roll
+ror
+
+4 way instruction
+select l r choice_also_dest
+fma a b c_and_dest

@@ -3,9 +3,16 @@ name = "fantasy-cpu-emulator"
 version = "0.1.0"
 authors = ["Justin (:flaviusb) Marsh <justin.marsh@flaviusb.net>"]
 edition = "2018"
+description = "Fantasy CPU Emulator."
+license = "GPL-3.0"
+readme = "README.md"
+license-file = "LICENSE"
+homepage = "https://github.com/flaviusb/fantasy-cpu-emulator"
+repository = "https://github.com/flaviusb/fantasy-cpu-emulator"
 
 [dependencies]
-fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
+#fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
+fantasy-cpu-emulator-macros = "0.1"
 quote = "1.0"
 syn = { version = "1.0", features = ["full", "visit", "fold", "extra-traits", "parsing", "proc-macro"] }
 proc-macro2 = "1.0"

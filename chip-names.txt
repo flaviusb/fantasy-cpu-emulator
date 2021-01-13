@@ -1,0 +1,11 @@
+Potato - 36-bit
+Corn - gpu?
+Lotus - 48-bit
+Kumara
+Banana
+Apple
+Tapioca (Cassava)
+Jackfruit - 36-bit with 3 9-bit addresses and 9 bits of instruction selection.
+Kale
+Carrot
+Bean
