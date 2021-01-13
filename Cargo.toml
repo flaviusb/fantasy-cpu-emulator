@@ -1,6 +1,6 @@
 [package]
 name = "fantasy-cpu-emulator"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Justin (:flaviusb) Marsh <justin.marsh@flaviusb.net>"]
 edition = "2018"
 description = "Fantasy CPU Emulator."

@@ -62,7 +62,7 @@ fn main() {
           }
           //println!("{}", s.clone());
           let text = String::from(s.trim());
-          let mut object: [u8; 2048] = [0; 2048];
+          let mut object: [u8; 2560] = [0; 2560];
           let mut i = 0;
           for cell in jackfruit::assemble(text).iter() {
             let bytes = cell.to_le_bytes();
@@ -73,6 +73,8 @@ fn main() {
             object[i] = bytes[2];
             i+=1;
             object[i] = bytes[3];
+            i+=1;
+            object[i] = bytes[4];
             i+=1;
           }
           let display = path_out.display();
