@@ -4,8 +4,9 @@ version = "0.1.0"
 authors = ["Justin (:flaviusb) Marsh <justin.marsh@flaviusb.net>"]
 workspace = ".."
 description = "Fantasy CPU Emulator Macros."
-license = ""
-license-file = ""
+license = "GPL-3.0"
+readme = "README.md"
+license-file = "LICENSE"
 homepage = "https://github.com/flaviusb/fantasy-cpu-emulator"
 repository = "https://github.com/flaviusb/fantasy-cpu-emulator"
 
