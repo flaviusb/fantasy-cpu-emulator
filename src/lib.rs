@@ -4,7 +4,7 @@ extern crate syn;
 extern crate proc_macro2;
 
 #[macro_use] extern crate fantasy_cpu_emulator_macros;
-
+extern crate getopts;
 mod potato;
 use potato::potato_chip;
 

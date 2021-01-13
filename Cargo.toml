@@ -8,7 +8,8 @@ edition = "2018"
 fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
 quote = "1.0"
 syn = { version = "1.0", features = ["full", "visit", "fold", "extra-traits", "parsing", "proc-macro"] }
-proc-macro2 = "*"
+proc-macro2 = "1.0"
+getopts = "0.2"
 
 [workspace]
 # members = ["fantasy-cpu-emulator-macros"]
