@@ -1,0 +1,32 @@
+Bundle (sort of) state into stage functions
+tick function include
+
+tick(advance_by, allstate) -> allstate
+where allstate = 
+  memories
+  pipeline state
+  statebundle
+  cancels
+
+and advance_by is in units of 1/product_{0}^{i}(device_base_speed_{i}) where cycles are multiplied by product_{1}^{i}(device_base_speed_{i}) (with device 0 as the core in question) ... or something
+
+memory filler (with assembly)
+superproject - basic potato
+ring buffer -> sound
+argument parsing
+file attachment
+
+---
+
+memory image
+addresses
+labels
+segments
+literal bit insertion
+constraints
+
+
+---
+
+The executable image format, the system image format, and the 'at rest' format are seperate but related
+for example, for potato, there needs to be a streaming container format for the executable image, the system image format includes reified datastructures for eg the stack, and the 'at rest' format is 'how to pack this and where eg into memories, on disc etc'.
