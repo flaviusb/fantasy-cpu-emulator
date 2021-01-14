@@ -5,15 +5,17 @@
 // It should drain once every n steps, where m is the
 // world clock Hz, defined as the LCM of all clocks in the system,
 // d is the drain rate in Hz, and n = m / d
+//use std::cell::RefCell;
+use std::sync::Arc;
 
-pub struct RingBuffer<'a> {
+pub struct RingBuffer {
   pub index: usize,
   pub size: usize,
   pub contents: Vec<u64>,
   pub speed: u32, // ticks per action
   pub progress: u32,
-  pub source: Option<&'a(Fn() -> (u64))>,
-  pub drain: Option<&'a(Fn(u64) -> ())>,
+  pub source: Arc<(FnMut() -> (u64))>,
+  pub drain: Arc<(FnMut(u64) -> ())>,
   pub width: u8,
 }
 
@@ -26,14 +28,11 @@ pub fn ticker(forward_by: u32, mut rb: RingBuffer) {
   let mut time = forward_by + rb.progress;
   while (time > rb.speed) {
     time -= rb.speed;
-    match rb.drain {
-      None => {},
-      Some(fun) => fun(mask & rb.contents[rb.index])
-    }
-    rb.contents[rb.index] = match rb.source {
-      None => 0,
-      Some(fun) => mask & fun(),
+    match (Arc::get_mut(&mut rb.drain)) {
+      None => panic!("!!!"),
+      Some(x) => x(mask & rb.contents[rb.index]),
     };
+    rb.contents[rb.index] = mask & (match Arc::get_mut(&mut rb.source) { None => panic!("!!!"), Some(x) => x(), });
     if rb.index < rb.size {
       rb.index += 1;
     } else {
