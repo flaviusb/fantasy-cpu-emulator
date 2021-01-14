@@ -13,3 +13,6 @@ use unpipelined_potato::unpipelined_potato_chip;
 
 pub mod jackfruit;
 use jackfruit::jackfruit_chip;
+
+pub mod sound;
+use sound::RingBuffer;
