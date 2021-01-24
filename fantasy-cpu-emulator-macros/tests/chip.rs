@@ -153,3 +153,49 @@ fn test_assembler() {
   assert_eq!(test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 0,  b: 0, c: 0       } ), test_potato::Instructions::from_string("Addisl", vec!("0",  "0", "0")));
   assert_eq!(test_potato::Instruction::Addisl(test_potato::Instructions::Addisl { a: 10, b: 3, c: 99      } ), test_potato::Instructions::from_string("Addisl", vec!("10", "3", "99")));
 }
+
+
+define_chip! {
+  # test_notato
+
+  ## Misc
+
+  - Instruction width: 8
+
+  ## Raw
+
+  #[derive(Debug,PartialEq,Eq,Clone,Copy)]
+  pub enum Foo {
+    a,
+    b,
+  }
+  type U12 = u16;
+  pub fn fresh_mem() -> Memories::t {
+    Memories::t{base: Memories::base{a:0, b:0, acc:0}, bundle: Memories::bundle{stack: Foo::a},}
+  }
+
+  ## Memory
+
+  - base is register
+    * a:   12 bit
+    * b:   12 bit
+    * acc: 12 bit
+  - bundle is state
+    * stack: super::Foo
+
+  ## Dis/Assembler
+
+  ## Pipeline
+    - decode in Decode = super::super::Instructions::decode
+
+  ## Instructions
+
+  Nop, 0 0 0 0 0 0 0 0, "Nop."
+
+}
+
+#[test]
+fn test_extra_state() {
+  let mems = test_notato::Memories::t{base: test_notato::Memories::base{a:0, b:0, acc:0}, bundle: test_notato::Memories::bundle{stack: test_notato::Foo::a},};
+  assert_eq!(mems, test_notato::fresh_mem());
+}

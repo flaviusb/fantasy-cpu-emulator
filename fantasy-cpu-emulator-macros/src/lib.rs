@@ -32,6 +32,7 @@ struct Memory {
 enum MemoryType { // Still to add: stacks (for eg hardware return stack), ringbuffers, queues, ...
   Scratch(ScratchMemory),
   Register(Vec<RegisterMemory>),
+  State(Vec<InnerState>),
 }
 
 #[derive(PartialEq,Eq)]
@@ -45,6 +46,12 @@ struct ScratchMemory {
 struct RegisterMemory {
   name: String, // we need geometry information in here as well
   width: u64,   // but we don't handle vector registers, lanes, register sets, subaddressing schemes, flags, special casing IP, registers with a fixed value etc yet
+}
+
+#[derive(PartialEq,Eq)]
+struct InnerState {
+  state: String,
+  typ:  syn::Type,
 }
 
 #[derive(PartialEq,Eq)]
@@ -363,6 +370,17 @@ impl Parse for Memory {
           registers.push(RegisterMemory { name: name, width: num });
         };
         return  Ok(Memory { name: name, kind: MemoryType::Register(registers) });
+      },
+      "state" | "State" => {
+        let mut states: Vec<InnerState> = vec!();
+        while(input.peek(Token![*]) && !input.is_empty()) {
+          input.parse::<Token![*]>()?;
+          let state = input.parse::<syn::Ident>()?.to_string();
+          input.parse::<Token![:]>()?;
+          let typ = input.parse::<syn::Type>()?;
+          states.push(InnerState { state, typ });
+        }
+        return Ok(Memory { name: name, kind: MemoryType::State(states) });
       },
       x => panic!(format!("Expected memory type: scratch or Scratch or register or Register, got {} instead.", x)),
     };
@@ -693,6 +711,14 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           let word_size = reg.width;
           let (block, ..) = rationalise(syn::parse_quote!{ [u; #word_size] });
           one_pre_mem.push(mkField(reg.name.clone(), block));
+        }
+        predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone,Copy)] pub struct #name_i { #one_pre_mem } });
+        mems.push(mkField(name.clone(), mkType(name)));
+      },
+      MemoryType::State(states) => {
+        let mut one_pre_mem: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
+        for state in states {
+          one_pre_mem.push(mkField(state.state.clone(), state.typ.clone()));
         }
         predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone,Copy)] pub struct #name_i { #one_pre_mem } });
         mems.push(mkField(name.clone(), mkType(name)));
