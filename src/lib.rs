@@ -5,6 +5,10 @@ extern crate proc_macro2;
 
 #[macro_use] extern crate fantasy_cpu_emulator_macros;
 extern crate getopts;
+
+extern crate arraydeque;
+extern crate generic_array;
+
 mod potato;
 use potato::potato_chip;
 
@@ -15,4 +19,4 @@ pub mod jackfruit;
 use jackfruit::jackfruit_chip;
 
 pub mod sound;
-use sound::RingBuffer;
+//use sound::RingBuffer;

@@ -7,36 +7,63 @@
 // d is the drain rate in Hz, and n = m / d
 //use std::cell::RefCell;
 use std::sync::Arc;
+use std::fs::File;
+use std::io::Write;
+use arraydeque::{ArrayDeque, Wrapping, Array};
 
-pub struct RingBuffer {
-  pub index: usize,
-  pub size: usize,
-  pub contents: Vec<u64>,
-  pub speed: u32, // ticks per action
-  pub progress: u32,
-  pub source: Arc<(FnMut() -> (u64))>,
-  pub drain: Arc<(FnMut(u64) -> ())>,
-  pub width: u8,
+// A RingBuffer is an ArrayDeque<[T; N], Wrapping> for N elements of T
+// let mut rb: ArrayDeque<[u16; 64], Wrapping> = ArrayDeque::new();
+// rb.push_back(x) to put stuff on
+// rb.pop_front().unwrap_or(0) to get the next line level amount
+
+// DAC is a sink.
+//
+
+pub trait DACType {
 }
 
-pub fn ticker(forward_by: u32, mut rb: RingBuffer) {
-  let mask: u64 = if rb.width >= 64 {
-    0b11111111111111111111111111111111_11111111111111111111111111111111
-  } else {
-    (1 << rb.width) - 1
-  };
-  let mut time = forward_by + rb.progress;
-  while (time > rb.speed) {
-    time -= rb.speed;
-    match (Arc::get_mut(&mut rb.drain)) {
-      None => panic!("!!!"),
-      Some(x) => x(mask & rb.contents[rb.index]),
-    };
-    rb.contents[rb.index] = mask & (match Arc::get_mut(&mut rb.source) { None => panic!("!!!"), Some(x) => x(), });
-    if rb.index < rb.size {
-      rb.index += 1;
-    } else {
-      rb.index = 0;
-    }
+pub struct DevNull {}
+impl DACType for DevNull {}
+
+pub struct FileOutput {
+  file: Arc<File>,
+}
+impl DACType for FileOutput {}
+
+pub struct DAC<T: DACType = DevNull> {
+  x: T,
+}
+
+impl DAC<DevNull> {
+  pub fn new() -> Self {
+    DAC { x: DevNull{} }
+  }
+  pub fn put(&mut self, out: &[u8]) {
   }
 }
+
+impl DAC<FileOutput> {
+  pub fn new(path: String) -> Self {
+    let mut file: Arc<File> = Arc::new(File::create(path).unwrap());
+    DAC { x: FileOutput{file: file} }
+  }
+  pub fn put(&mut self, out: &[u8]) {
+    (*Arc::get_mut(&mut self.x.file).unwrap()).write(out);
+  }
+}
+
+
+use generic_array::{ArrayLength, GenericArray};
+
+pub struct RingBuffer<N: ArrayLength<u32>> {
+  pub dac: DAC,
+  pub rb:  Arc<ArrayDeque<GenericArray<u32, N>, Wrapping>>,
+}
+
+impl<N: ArrayLength<u32>> RingBuffer<N> {
+  pub fn go(&mut self) {
+    
+    //self.dac.put(&u32::to_le_bytes(self.rb.pop_front().unwrap_or(0)));
+  }
+}
+

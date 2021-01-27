@@ -8,8 +8,11 @@ define_chip! {
 
   ## Raw
 
+  #[derive(Debug,PartialEq,Eq,Clone,Copy)]
+  pub struct IO {
+  }
   pub fn fresh_mem() -> Memories::t {
-    Memories::t{registers: Memories::registers{ip:0}, connectors: Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base: [0; 512], stall: [0; 512],}
+    Memories::t{registers: Memories::registers{ip:0}, connectors: Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base: [0; 512], stall: [0; 512], interfaces: Memories::interfaces { io: IO { } }}
   }
   impl Default for Memories::t {
     fn default() -> Self {
@@ -202,6 +205,8 @@ define_chip! {
     * two: 9 bit
     * three: 9 bit
     * four: 9 bit
+  - interfaces is state
+    * io: super::IO
 
   ## Dis/Assembler
 
@@ -1240,7 +1245,7 @@ data: 5
 out: 3");
   let mut stall = [0; 512];
   stall[2] = 255;
-  let obj = jc::Memories::t{registers: jc::Memories::registers{ip:0}, connectors: jc::Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base:assemble(code), stall,};
+  let obj = jc::Memories::t{registers: jc::Memories::registers{ip:0}, connectors: jc::Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base:assemble(code), stall, ..Default::default()};
   let progress = jc::begin_tick(16 * 3 * 2 + 4, obj);
   assert_eq!(jc::Memories::t { base: [
     0, 10, 51541385716, 51621082622, 6, 34362890240, 42952824833, 42952824834, 51542228992, 35973503502, 35705068047, 51547471872, 5, 2, 3,
@@ -1267,7 +1272,7 @@ out: 3");
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  ], registers: jc::Memories::registers { ip: 7 }, connectors: jc::Memories::connectors { one: 0, two: 0, three: 0, four: 0 } }, jc::get_mem(progress));
+  ], registers: jc::Memories::registers { ip: 7 }, ..Default::default() }, jc::get_mem(progress));
   let code2 = String::from(
 "start: Jump 2, then-1, 500
 Jump 500, 400, 450
@@ -1286,7 +1291,7 @@ data: 5
 out: 3");
   let mut stall2 = [0; 512];
   stall2[2] = 0b10000000;
-  let obj = jc::Memories::t{registers: jc::Memories::registers{ip:0}, connectors: jc::Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base:assemble(code2), stall:stall2,};
+  let obj = jc::Memories::t{base:assemble(code2), stall:stall2, ..Default::default()};
   let progress = jc::begin_tick(16 * 3 * 2 + 4, obj);
   assert_eq!(jc::Memories::t { base: [
     0, 10, 51541385716, 10, 6, 34362890240, 42952824833, 42952824835, 51542228992, 35973503502, 35705068047, 51547471872, 5, 2, 3,
@@ -1313,6 +1318,6 @@ out: 3");
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  ], registers: jc::Memories::registers { ip: 69 }, connectors: jc::Memories::connectors { one: 0, two: 0, three: 0, four: 0 } }, jc::get_mem(progress));
+  ], registers: jc::Memories::registers { ip: 69 }, ..Default::default() }, jc::get_mem(progress));
 }
 
