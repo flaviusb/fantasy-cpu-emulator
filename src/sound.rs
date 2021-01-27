@@ -62,8 +62,7 @@ pub struct RingBuffer<N: ArrayLength<u32>> {
 
 impl<N: ArrayLength<u32>> RingBuffer<N> {
   pub fn go(&mut self) {
-    
-    //self.dac.put(&u32::to_le_bytes(self.rb.pop_front().unwrap_or(0)));
+    self.dac.put(&u32::to_le_bytes((*Arc::get_mut(&mut (self.rb)).unwrap()).pop_front().unwrap_or(0)));
   }
 }
 
