@@ -6,8 +6,9 @@ extern crate proc_macro2;
 #[macro_use] extern crate fantasy_cpu_emulator_macros;
 extern crate getopts;
 
-extern crate arraydeque;
-extern crate generic_array;
+//extern crate arraydeque;
+//extern crate generic_array;
+extern crate dasp_ring_buffer;
 
 mod potato;
 use potato::potato_chip;

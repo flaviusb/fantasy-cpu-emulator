@@ -17,8 +17,9 @@ quote = "1.0"
 syn = { version = "1.0", features = ["full", "visit", "fold", "extra-traits", "parsing", "proc-macro"] }
 proc-macro2 = "1.0"
 getopts = "0.2"
-arraydeque = { version = "0.4.5", features = ["std", "use_generic_array"] }
-generic-array = "0.12.3"
+dasp_ring_buffer = "0.11.0"
+#arraydeque = { version = "0.4.5", features = ["std", "use_generic_array"] }
+#generic-array = "0.12.3"
 
 [workspace]
 # members = ["fantasy-cpu-emulator-macros"]
