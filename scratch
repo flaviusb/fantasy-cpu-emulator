@@ -1,3 +1,16 @@
+Signals:
+
+Clocks: trigger things on rise/fall edge, have a clock tree / clock domain, can't be directly driven by a listener but can eg depend on the state of some other signal
+Busses: Sample / drive at a point, maybe have pull up / pull down set so driving it only affects it in the relevant way eg driving 0 when something else is driving 1 might not do anything
+Interrupts: Kind of like a clock, has a trigger?
+Network: Model propagation delay somehow?
+
+Clocked vs combinatorial stuff?
+
+
+---
+
+
 A = top
 B = side
 
