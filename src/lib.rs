@@ -21,3 +21,6 @@ use jackfruit::jackfruit_chip;
 
 pub mod sound;
 //use sound::RingBuffer;
+
+pub mod clock;
+use clock::Clocked;
