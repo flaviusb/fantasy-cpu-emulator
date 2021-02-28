@@ -20,6 +20,7 @@ struct ChipInfo {
   pipeline: Pipeline,
   instructions: Instructions,
   raw: Vec<syn::Item>,
+  if_copy: bool,
 }
 
 #[derive(PartialEq,Eq)]
@@ -398,6 +399,7 @@ impl Parse for ChipInfo {
     let mut instructions: Option<Instructions> = None;
     let mut memories: Vec<Memory> = vec!();
     let mut instruction_width: Option<u8> = None;
+    let mut if_copy = false;
     let mut raw: Vec<syn::Item> = vec!();
     syn::custom_punctuation!(H2, ##);
     while(input.peek(H2) && !input.is_empty()) {
@@ -426,17 +428,25 @@ impl Parse for ChipInfo {
           instructions = Some(input.parse::<Instructions>()?);
         },
         "Misc" => {
-          input.parse::<Token![-]>()?;
-          let ins = input.parse::<Ident>()?.to_string();
-          if ins != "Instruction" {
-            panic!("Expected 'Instruction', got {}.", ins);
+          while(input.peek(Token![-])) {
+            input.parse::<Token![-]>()?;
+            let ins = input.parse::<Ident>()?.to_string();
+            match ins.to_string().as_str() {
+              "Instruction" => {
+                let width = input.parse::<Ident>()?.to_string();
+                if width != "width" {
+                  panic!("Expected 'width', got {}.", width);
+                }
+                input.parse::<Token![:]>()?;
+                instruction_width = Some(input.parse::<syn::LitInt>()?.base10_parse::<u8>()?);
+              },
+              "CopyState" => {
+                input.parse::<Token![:]>()?;
+                if_copy = input.parse::<syn::LitBool>()?.value;
+              },
+              x => panic!("Expected 'Instruction' or 'CopyState', got {}.", x),
+            }
           }
-          let width = input.parse::<Ident>()?.to_string();
-          if width != "width" {
-            panic!("Expected 'width', got {}.", width);
-          }
-          input.parse::<Token![:]>()?;
-          instruction_width = Some(input.parse::<syn::LitInt>()?.base10_parse::<u8>()?);
         },
         "Raw" => {
           while(!(input.peek(H2) || input.is_empty())) {
@@ -448,7 +458,7 @@ impl Parse for ChipInfo {
         },
       }
     }
-    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap(), raw: raw })
+    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap(), raw: raw, if_copy: if_copy })
   }
 }
 
@@ -679,7 +689,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     encoded_bit_segments.push(cmp_thing);
     // Build the instruction struct from the generated fields
     let v: syn::ItemStruct = syn::parse_quote! {
-      #[derive(Debug,PartialEq,Eq)]
+      #[derive(Debug,PartialEq,Eq,Clone,Copy)]
       pub struct #name {
         #args
       }
@@ -696,6 +706,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   };
   let mut predeclare_for_mems: Vec<syn::ItemStruct> = vec!();
   let mut mems: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = syn::punctuated::Punctuated::new();
+  let ifCopy = if chip_info.if_copy { quote! { Copy } } else { quote! { } };
   for mem in chip_info.memories.iter() {
     let name = mem.name.clone();
     let name_i = format_ident!("{}", mem.name.clone());
@@ -720,7 +731,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         for state in states {
           one_pre_mem.push(mkField(state.state.clone(), state.typ.clone()));
         }
-        predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone,Copy)] pub struct #name_i { #one_pre_mem } });
+        predeclare_for_mems.push(syn::parse_quote! { #[derive(Debug,PartialEq,Eq,Clone,#ifCopy)] pub struct #name_i { #one_pre_mem } });
         mems.push(mkField(name.clone(), mkType(name)));
       },
     }
@@ -772,7 +783,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
           vec!()
         } else {
           vec!(syn::parse_quote! {
-            #[derive(Debug, Clone)]
+            #[derive(Debug,PartialEq,Eq,Clone,Copy)]
             pub enum Instruction {
               #instruction_enum
             }
@@ -798,7 +809,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
         pipelines.push(syn::parse_quote! {
           pub mod #module_name {
             #(#instruction_root_enum)*
-            #(#[derive(Debug, Clone)] #instruction_structs);*
+            #(#[derive(Debug, PartialEq, Eq, Clone, Copy)] #instruction_structs);*
             #(#timings_fn)*
             pub fn #fn_name(input: #input) -> #out {
               match input {
@@ -813,13 +824,14 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
   }
   let decl_types: Vec<syn::ItemType> = rationalised_types.into_iter().map(|(k, v)| v).collect();
   let raw = chip_info.raw;
+  let ifCopy = if chip_info.if_copy { quote! { Copy } } else { quote! { } };
   (quote! {
     pub mod #mod_name {
       #(#decl_types)*
       #(#raw)*
       pub mod Memories {
         #(#predeclare_for_mems)*
-        #[derive(Debug,PartialEq,Eq,Clone,Copy)]
+        #[derive(Debug,PartialEq,Eq,Clone,#ifCopy)]
         pub struct t {
           #mems
         }
@@ -848,9 +860,9 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
             x => panic!(format!("Could not convert string {} with args {:?} to instruction", x, args)),
           }
         }
-        #(#[derive(Clone)] #instruction_structs)*
+        #( #instruction_structs)*
       }
-      #[derive(Debug,PartialEq,Eq,Clone)]
+      #[derive(Debug,PartialEq,Eq,Clone,Copy)]
       pub enum Instruction {
         #instruction_seq
       }

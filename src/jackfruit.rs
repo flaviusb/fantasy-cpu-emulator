@@ -5,14 +5,31 @@ define_chip! {
   ## Misc
 
   - Instruction width: 36
+  - CopyState: true
 
   ## Raw
 
+  type U9_triplet = (Option<U9>,Option<U9>,Option<U9>,);
+  type WaitList = (Option<U9_triplet>,Option<U9_triplet>,Option<U9_triplet>,);
+
+  #[derive(Debug,PartialEq,Eq,Clone,Copy)]
+  pub enum Doing {
+    Fetching { progress: u32, },
+    Computing { progress: u32, instruction: Instruction, },
+    StalledFetching { forward_by: u32, progress: u32, },
+    StalledComputing { forward_by: u32, progress: u32, instruction: Instruction, waiting_on: WaitList}, // waiting_on is ∨(∧(i)) with the ∨ in priority order
+    Halted,
+  }
+  impl Default for Doing {
+    fn default() -> Self {
+       Doing::Halted
+    }
+  }
   #[derive(Debug,PartialEq,Eq,Clone,Copy)]
   pub struct IO {
   }
   pub fn fresh_mem() -> Memories::t {
-    Memories::t{registers: Memories::registers{ip:0}, connectors: Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base: [0; 512], stall: [0; 512], interfaces: Memories::interfaces { io: IO { } }}
+    Memories::t{registers: Memories::registers{ip:0}, connectors: Memories::connectors { one: 0, two: 0, three: 0, four: 0 }, base: [0; 512], stall: [0; 512], currently_doing: Memories::currently_doing { state: Default::default() }, interfaces: Memories::interfaces { io: IO { } }}
   }
   impl Default for Memories::t {
     fn default() -> Self {
@@ -205,6 +222,8 @@ define_chip! {
     * two: 9 bit
     * three: 9 bit
     * four: 9 bit
+  - currently_doing is state
+    * state: super::Doing
   - interfaces is state
     * io: super::IO
 
@@ -1321,3 +1340,8 @@ out: 3");
   ], registers: jc::Memories::registers { ip: 69 }, ..Default::default() }, jc::get_mem(progress));
 }
 
+use crate::Clocked;
+impl Clocked for &mut jackfruit_chip::Memories::t {
+  fn rise_edge(&mut self) {}
+  fn fall_edge(&mut self) {}
+}

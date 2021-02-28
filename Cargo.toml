@@ -11,8 +11,8 @@ homepage = "https://github.com/flaviusb/fantasy-cpu-emulator"
 repository = "https://github.com/flaviusb/fantasy-cpu-emulator"
 
 [dependencies]
-#fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
-fantasy-cpu-emulator-macros = "0.2"
+fantasy-cpu-emulator-macros = { path = "fantasy-cpu-emulator-macros" }
+#fantasy-cpu-emulator-macros = "0.2"
 quote = "1.0"
 syn = { version = "1.0", features = ["full", "visit", "fold", "extra-traits", "parsing", "proc-macro"] }
 proc-macro2 = "1.0"
