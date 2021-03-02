@@ -9,15 +9,43 @@ define_chip! {
 
   ## Raw
 
-  type U9_triplet = (Option<U9>,Option<U9>,Option<U9>,);
-  type WaitList = (Option<U9_triplet>,Option<U9_triplet>,Option<U9_triplet>,);
+  #[derive(Debug,PartialEq,Eq,Clone,Copy)]
+  pub enum UpToThree<T> {
+    Zero,
+    One(T),
+    Two(T, T,),
+    Three(T, T, T,),
+  }
 
+  impl<T> IntoIterator for UpToThree<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+      match self {
+        UpToThree::Zero => vec!().into_iter(),
+        UpToThree::One(a) => vec!(a).into_iter(),
+        UpToThree::Two(a, b) => vec!(a, b).into_iter(),
+        UpToThree::Three(a, b, c) => vec!(a, b, c).into_iter(),
+      }
+    }
+  }
+  impl<T> UpToThree<T> {
+    fn add(self, thing: T) -> UpToThree<T> {
+      match self {
+        UpToThree::Zero           => UpToThree::One(thing),
+        UpToThree::One(a)         => UpToThree::Two(thing,a),
+        UpToThree::Two(a, b)      => UpToThree::Three(thing,a,b),
+        UpToThree::Three(a, b, c) => UpToThree::Three(thing, a, b), // Things fall off the end
+      }
+    }
+  }
   #[derive(Debug,PartialEq,Eq,Clone,Copy)]
   pub enum Doing {
     Fetching { progress: u32, },
     Computing { progress: u32, instruction: Instruction, },
     StalledFetching { forward_by: u32, progress: u32, },
-    StalledComputing { forward_by: u32, progress: u32, instruction: Instruction, waiting_on: WaitList}, // waiting_on is ∨(∧(i)) with the ∨ in priority order
+    StalledComputing { forward_by: u32, progress: u32, instruction: Instruction, waiting_on: UpToThree<UpToThree<U9>>}, // waiting_on is ∨(∧(i)) with the ∨ in priority order
     Halted,
   }
   impl Default for Doing {
