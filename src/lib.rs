@@ -19,8 +19,34 @@ use unpipelined_potato::unpipelined_potato_chip;
 pub mod jackfruit;
 use jackfruit::jackfruit_chip;
 
+pub mod banana;
+use banana::banana_chip;
+
 pub mod sound;
 //use sound::RingBuffer;
 
 pub mod clock;
 use clock::Clocked;
+
+
+//2-5: fn_y, -> x if x >= 2 && x < 5 => wait(),
+//             x if x == 5 => fn_y(),
+   
+#[macro_export]
+macro_rules! ticky {
+  ($it:ident; $(($start:literal)(-($end:literal))?: ($action:block)),+) => {
+    match $it {
+      $(ticky_inner!{$start $(-$end)?: $action,}),+
+    }
+  };
+}
+
+macro_rules! ticky_inner {
+  (($exact:literal): ($action:block),) => { it if it == $literal => $block };
+  (($start:literal)-($end:literal): ($action:block),) => { it if (it <= $start) && (it > $end) => (), it if it == $end => block };
+}
+
+#[macro_export]
+macro_rules! mt {
+  ($name:ident $($n:ident),*) => { super::super::Memories::t{ currently_doing: super::super::Memories::currently_doing { state: super::super::Doing::Computing {instruction: super::super::Instruction::$name(super::super::Instructions::$name{$($n),*}), ..} }, ..} };
+}
