@@ -47,6 +47,7 @@ macro_rules! ticky_inner {
 }
 
 #[macro_export]
-macro_rules! mt {
-  ($name:ident $($n:ident),*) => { super::super::Memories::t{ currently_doing: super::super::Memories::currently_doing { state: super::super::Doing::Computing {instruction: super::super::Instruction::$name(super::super::Instructions::$name{$($n),*}), ..} }, ..} };
+macro_rules! mc {
+  ($name:ident $($n:ident),*) => { super::super::Memories::t{ currently_doing: super::super::Memories::currently_doing { state: super::super::Doing::Computing {progress, instruction: super::super::Instruction::$name(super::super::Instructions::$name{$($n),*}), ..} }, ..} };
 }
+

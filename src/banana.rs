@@ -1,5 +1,5 @@
 #[macro_use]
-use crate::mt;
+use crate::mc;
 
 define_chip! {
   # banana_chip
@@ -101,6 +101,6 @@ define_chip! {
 
   ## Instructions
 
-  Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, CheckStall <- 0 (crate::mt!{Nop}) => { input } -> Nop *, BackEnd <- 1 (crate::mt!{Nop}) => { let mut new_mems = input; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
-  Nopi,         0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 a:[u; 10], CheckStall <- 0 (crate::mt!{Nopi a}) => { input } -> Nopi *, BackEnd <- 1 (crate::mt!{Nopi a}) => { let mut new_mems = input; new_mems.registers.ip += 1; new_mems } -> Nopi *,  "Nopi."
+  Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, CheckStall <- 0 (crate::mc!{Nop}) => { input } -> Nop *, BackEnd <- 1 (crate::mc!{Nop}) => { let mut new_mems = input; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
+  Nopi,         0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 a:[u; 10], CheckStall <- 0 (crate::mc!{Nopi a}) => { input } -> Nopi *, BackEnd <- 1 (crate::mc!{Nopi a}) => { let mut new_mems = input; new_mems.registers.ip += 1; new_mems } -> Nopi *,  "Nopi."
 }
