@@ -34,20 +34,21 @@ use clock::Clocked;
    
 #[macro_export]
 macro_rules! ticky {
-  ($it:ident; $(($start:literal)(-($end:literal))?: ($action:block)),+) => {
+  ($it:ident; $(($start:literal)((-($end:literal))?); ($action:block)),+) => {
     match $it {
-      $(ticky_inner!{$start $(-$end)?: $action,}),+
+      $($crate::ticky_inner!{$start $(-$end)?; $action,}),+
     }
   };
 }
 
+#[macro_export]
 macro_rules! ticky_inner {
-  (($exact:literal): ($action:block),) => { it if it == $literal => $block };
-  (($start:literal)-($end:literal): ($action:block),) => { it if (it <= $start) && (it > $end) => (), it if it == $end => block };
+  (($exact:literal); ($action:block),) => { it if it == $literal => $block };
+  (($start:literal)-($end:literal); ($action:block),) => { it if (it <= $start) && (it > $end) => (), it if it == $end => block };
 }
 
 #[macro_export]
 macro_rules! mc {
-  ($name:ident $($n:ident),*) => { super::super::Memories::t{ currently_doing: super::super::Memories::currently_doing { state: super::super::Doing::Computing {progress, instruction: super::super::Instruction::$name(super::super::Instructions::$name{$($n),*}), ..} }, ..} };
+  ( $name:ident $($n:ident),* $(; $progress:ident)? ) => { super::super::Memories::t{ currently_doing: super::super::Memories::currently_doing { state: super::super::Doing::Computing {$(progress: $progress,)? instruction: super::super::Instruction::$name(super::super::Instructions::$name{$($n),*}), ..} }, ..} };
 }
 
