@@ -46,7 +46,7 @@ define_chip! {
   pub enum Doing {
     Fetching { progress: u32, },
     Computing { progress: u32, instruction: Instruction, },
-    StalledFetching { forward_by: u32, progress: u32, },
+    StalledFetching,
     StalledComputing { forward_by: u32, progress: u32, instruction: Instruction, waiting_on: UpToThree<UpToThree<U10>>}, // waiting_on is ∨(∧(i)) with the ∨ in priority order
     Halted,
   }
@@ -86,6 +86,47 @@ define_chip! {
       new_ip
     }
   }
+  pub fn make_fetch(mem: &mut Memories::t) {
+    mem.currently_doing.state = Doing::Fetching { progress: 0 };
+  }
+  const fetch_and_decode_timing: u32 = 1;
+  pub fn tick(mem: Memories::t) -> Memories::t {
+    match mem.currently_doing.state {
+      Doing::Fetching { progress } => {
+        if get_stalled(mem, mem.registers.ip) {
+          let mut new_mem = mem;
+          new_mem.currently_doing.state = Doing::StalledFetching;
+          new_mem
+        } else {
+          match progress {
+            x if x < fetch_and_decode_timing => { mem },
+            x if x == fetch_and_decode_timing  => { let it = fetch(&mem, mem.registers.ip); let inst = Pipeline::Decode::decode(it); let mut new_mem = mem; new_mem.currently_doing.state = Doing::Computing { progress: 0, instruction: inst }; new_mem },
+            _ => panic!("Too long fetching"),
+          }
+        }
+      },
+      Doing::StalledFetching => {
+        if get_stalled(mem, mem.registers.ip) {
+          mem
+        } else {
+          let mut new_mem = mem;
+          make_fetch(&mut new_mem);
+          new_mem
+        }
+      },
+      x @ Doing::Computing { .. } => {
+        Pipeline::BackEnd::back_end(mem)
+      },
+      x @ Doing::StalledComputing { .. } => {
+        let maybe_stalled_mem = Pipeline::CheckStall::check_stall(mem);
+        match maybe_stalled_mem.currently_doing.state {
+          x @ Doing::Computing { .. } => tick(maybe_stalled_mem),
+          _ => maybe_stalled_mem,
+        }
+      },
+      Doing::Halted => { mem },
+    }
+  }
 
   ## Memory
 
@@ -118,7 +159,8 @@ define_chip! {
   ## Instructions
 
   Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, CheckStall <- 0 (crate::mc!{Nop}) => { input } -> Nop *, BackEnd <- 1 (crate::mc!{Nop}) => { let mut new_mems = input; new_mems.registers.ip += 1; new_mems } -> Nop *,  "Nop."
-  Nop1i,        0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 a:[u; 10], CheckStall <- 0 (crate::mc!{Nop1i a}) => {
+  Nopn,         0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 n:[u; 10], CheckStall <- 0 (crate::mc!{Nopn n}) => { input } -> Nopn *, BackEnd <- 1 (crate::mc!{Nopn n; progress}) => { let mut new_mems = input; new_mems.registers.ip += 1; new_mems } -> Nopn *,  "Nopn."
+  Nop1i,        0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 a:[u; 10], CheckStall <- 0 (crate::mc!{Nop1i a}) => {
     let mut mem = input;
     use super::super::{get_stalled, Doing, UpToThree, Instruction, Instructions};
     if get_stalled(input, input.registers.ip) {
@@ -128,11 +170,11 @@ define_chip! {
       mem
     }
   } -> Nop1i *, BackEnd <- 2 (crate::mc!{Nop1i a; progress}) => { 
-    use super::super::{fetch, advance_ip};
+    use super::super::{fetch, advance_ip, make_fetch};
     match progress {
       0 => { let thing = fetch(&input, a); let mut new_mems = input; new_mems.muarch_regs.a = thing; new_mems },
       1 => { let thing = input.muarch_regs.a; let mut new_mems = input; new_mems.base[input.registers.ip as usize] = thing; new_mems },
-      2 => { let mut new_mems = input; new_mems.registers.ip = advance_ip(new_mems.registers.ip); new_mems },
+      2 => { let mut new_mems = input; new_mems.registers.ip = advance_ip(new_mems.registers.ip); make_fetch(&mut new_mems); new_mems },
       _ => panic!("Too much progress"),
     }
   } -> Nop1i *,  "Nop1i."
