@@ -91,3 +91,31 @@ ror
 4 way instruction
 select l r choice_also_dest
 fma a b c_and_dest
+
+---
+
+banana todo
+
+4 instruction formats
+
+Format 0: 000000 0000000000 0000000000 [opcode_0place; 10]
+Format 1: 000000 0000000000 [opcode_1place; 10] [address1; 10]
+Format 2: 000000 [opcode_2place; 10] [address1; 10] [address2; 10]
+Format 3: [opcode_3place; 6] [address1; 10] [address2; 10] [address3; 10]
+
+where opcode_nplace is nonzero.
+
+Up to 1024 format 2 instructions
+31 format 3 instructions
+
+Format 3:
+
+8 × logic: Nor, Material Nonimplication, XOR, NAND, AND, XNOR, Material Conditional, OR
+x × arithmetic: ???
+y × jumps
+z × bitmanip
+
+Format 2:
+3 × logic: T, F, ¬
+
+
