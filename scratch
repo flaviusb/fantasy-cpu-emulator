@@ -103,9 +103,10 @@ Format 1: 000000 0000000000 [opcode_1place; 10] [address1; 10]
 Format 2: 000000 [opcode_2place; 10] [address1; 10] [address2; 10]
 Format 3: [opcode_3place; 6] [address1; 10] [address2; 10] [address3; 10]
 
-where opcode_nplace is nonzero.
+where opcode_{1,2,3}place is nonzero.
 
-Up to 1024 format 2 instructions
+Up to 1024 format 0 instructions
+Up to 1023 format 1 and 2 instructions
 31 format 3 instructions
 
 Format 3:
