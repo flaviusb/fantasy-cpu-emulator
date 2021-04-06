@@ -96,12 +96,13 @@ fma a b c_and_dest
 
 banana todo
 
-4 instruction formats
+4 major instruction format kinds
 
-Format 0: 000000 0000000000 0000000000 [opcode_0place; 10]
-Format 1: 000000 0000000000 [opcode_1place; 10] [address1; 10]
-Format 2: 000000 [opcode_2place; 10] [address1; 10] [address2; 10]
-Format 3: [opcode_3place; 6] [address1; 10] [address2; 10] [address3; 10]
+Format 0:      000000 0000000000 0000000000 [opcode_0place; 10]
+Format 1:      000000 0000000000 [opcode_1place; 10] [address1; 10]
+Format 2-full: 000000 0 [opcode_2place_full; 9] [address1; 10] [address2; 10]
+Format 2-imm:  000000 1 [opcode_2place_imm; 4] [imm; 5] [address1; 10] [address2; 10]
+Format 3:      [opcode_3place; 6] [address1; 10] [address2; 10] [address3; 10]
 
 where opcode_{1,2,3}place is nonzero.
 
@@ -116,7 +117,38 @@ x × arithmetic: ???
 y × jumps
 z × bitmanip
 
-Format 2:
-3 × logic: T, F, ¬
+Format 2-full:
+3 × logic with mask: bitset (eg T with mask), bitunset (eg F with mask), bitflip (eg ¬ with mask)
+3 × logic: ¬, = (eg copy), ←→ (eg swap)
 
+Format 2-imm:
+rotate left/right, shift left right with fill 0/1, 
+shuffle
+unshuffle
 
+Format 1:
+2 × logic: T, F 
+
+---
+
+yam chip
+
+banks in addition to channel IO
+
+4 major instruction format kinds
+
+Format 0:      00000000 00000000 00000000 [opcode_0place; 8]
+Format 1:      00000000 00000000 [opcode_1place; 8] [address1; 8]
+Format 2-full: 00000000 000 [opcode_2place_full; 5] [address1; 8] [address2; 8]
+Format 2-imm:  0000000 [opcode_2place_imm; 4] [imm; 5] [address1; 8] [address2; 8]
+Format 3:      [opcode_3place; 8] [address1; 8] [address2; 8] [address3; 8]
+
+Format 2-imm:
+
+roli, rori, shl0i, shl1i, shr0i, shr1i, grevi, shuffle, unshuffle
+
+Format 2-full:
+3 × logic with mask: bitset (eg T with mask), bitunset (eg F with mask), bitflip (eg ¬ with mask)
+3 × logic: ¬, = (eg copy), ←→ (eg swap)
+
+bank switching: 
