@@ -137,18 +137,38 @@ banks in addition to channel IO
 
 4 major instruction format kinds
 
-Format 0:      00000000 00000000 00000000 [opcode_0place; 8]
-Format 1:      00000000 00000000 [opcode_1place; 8] [address1; 8]
-Format 2-full: 00000000 000 [opcode_2place_full; 5] [address1; 8] [address2; 8]
-Format 2-imm:  0000000 [opcode_2place_imm; 4] [imm; 5] [address1; 8] [address2; 8]
-Format 3:      [opcode_3place; 8] [address1; 8] [address2; 8] [address3; 8]
+Format 0:      0000000 0 00000000 00000000 [opcode_0place; 8]                         (256)
+Format 1:      0000000 0 00000000 [opcode_1place; 8] [address1; 8]                    (255)
+Format 2-full: 0000000 0 000 [opcode_2place_full; 5] [address1; 8] [address2; 8]      (31)
+Format 2-imm:  0000000 [opcode_2place_imm; 4] [imm; 5] [address1; 8] [address2; 8]    (15)
+Format 3:      [opcode_3place; 8] [address1; 8] [address2; 8] [address3; 8]           (254)
+
+Format 1:
+
+3 × logic direct: T, F, ¬
 
 Format 2-imm:
 
 roli, rori, shl0i, shl1i, shr0i, shr1i, grevi, shuffle, unshuffle
 
 Format 2-full:
+
 3 × logic with mask: bitset (eg T with mask), bitunset (eg F with mask), bitflip (eg ¬ with mask)
 3 × logic: ¬, = (eg copy), ←→ (eg swap)
 
+Format 3:
+
+cmovs
+
 bank switching: 
+
+
+---
+
+Ram very small processor - bean chip
+
+array of lines of cells
+2 × buffer line
+executor can read a line into a buffer, write a buffer into a line, perform an op on either one or both buffers (potentialoly with an immediate), write a buffer or a segment of a buffer out to the fabric, or load a buffer or segment of a buffer from the fabric 
+ops = logic, shifts/rotates/funnels, masks
+
