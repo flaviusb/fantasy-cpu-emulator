@@ -115,7 +115,7 @@ Format 3:
 8 × logic: Nor, Material Nonimplication, XOR, NAND, AND, XNOR, Material Conditional, OR
 x × arithmetic: ???
 y × jumps
-z × bitmanip
+z × bitmanip: grev
 
 Format 2-full:
 3 × logic with mask: bitset (eg T with mask), bitunset (eg F with mask), bitflip (eg ¬ with mask)
@@ -135,17 +135,39 @@ yam chip
 
 banks in addition to channel IO
 
-4 major instruction format kinds
+8 bits of direct addressing. 32-bit words, word addressable.
+16 segments of 16 words.
+15 banks, with bank 0 meaning 'whatever bank is currently selected'.
+
+7 major instruction format kinds
 
 Format 0:      0000000 0 00000000 00000000 [opcode_0place; 8]                         (256)
-Format 1:      0000000 0 00000000 [opcode_1place; 8] [address1; 8]                    (255)
+Format 1-full: 0000000 0 00000000 1 [opcode_1place; 7] [address1; 8]               (128)
+Format 1-imm   0000000 0 00000000 0 [opcode_1place; 7] [imm; 8]               (127)
 Format 2-full: 0000000 0 000 [opcode_2place_full; 5] [address1; 8] [address2; 8]      (31)
 Format 2-imm:  0000000 [opcode_2place_imm; 4] [imm; 5] [address1; 8] [address2; 8]    (15)
-Format 3:      [opcode_3place; 8] [address1; 8] [address2; 8] [address3; 8]           (254)
+Format 3-full: 1 [opcode_3place; 7] [address1; 8] [address2; 8] [address3; 8]           (127)
+Format 3-imm:  0 [opcode_3place; 7] [address1; 8] [address2; 8] [address3; 8]           (126)
 
-Format 1:
+Format 0:
+Nop
+Halt
+Sleep
+
+
+Format 1-full:
 
 3 × logic direct: T, F, ¬
+
+Instructions with unconditional/unless stall variants:
+- Jump
+- Bank switching indirect, where the cell at the address has segment:bank in the lower 8 bits 
+- Execute the instruction at %address without changing PC
+
+
+Format 1-imm:
+
+Bank switching, where the arg is 4 bits of segment and 4 bits of bank (with bank 0 being ...)
 
 Format 2-imm:
 
@@ -156,7 +178,14 @@ Format 2-full:
 3 × logic with mask: bitset (eg T with mask), bitunset (eg F with mask), bitflip (eg ¬ with mask)
 3 × logic: ¬, = (eg copy), ←→ (eg swap)
 
-Format 3:
+Format 3-full:
+a × bitops: grev, pdep+pext (for bitfields), ror/rol/shr0/shl0/shr1/shl1
+8 × logic: Nor, Material Nonimplication, XOR, NAND, AND, XNOR, Material Conditional, OR
+x × arithmetic: ???
+y × jumps
+
+Format 3-imm:
+x × bitops: grevi, rori/roli/shr0i/shl0i/shr1i/shl1i
 
 cmovs
 
@@ -169,6 +198,20 @@ Ram very small processor - bean chip
 
 array of lines of cells
 2 × buffer line
-executor can read a line into a buffer, write a buffer into a line, perform an op on either one or both buffers (potentialoly with an immediate), write a buffer or a segment of a buffer out to the fabric, or load a buffer or segment of a buffer from the fabric 
+executor can read a line into a buffer, write a buffer into a line, perform an op on either one or both buffers (potentially with an immediate), write a buffer or a segment of a buffer out to the fabric, or load a buffer or segment of a buffer from the fabric 
 ops = logic, shifts/rotates/funnels, masks
+
+---
+
+(A: bitmask) OP (B: memory)
+Bit set: send bitmask (all zeros except for bits to set) + OR
+Bit unset:
+  - send bitmask (all zeros except for bits to clear) + Xq (which is ((¬A) ∧ B))
+  - send bitmask (all ones except for bits to clear) + AND
+Bit flip:  send bitmask (all zeros except for bits to flip) + XNOR
+
+ B 0 1
+A
+0  0 1
+1  1 0
 
