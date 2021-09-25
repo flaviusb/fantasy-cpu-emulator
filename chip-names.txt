@@ -1,6 +1,6 @@
 Potato - 36-bit
 Corn - gpu?
-Lotus - 48-bit
+Lotus - ... 48-bit? 32-bit instruction with 8-bit address size with 4-bit banking and 4-bit segments
 Kumara
 Banana
 Apple

@@ -22,6 +22,9 @@ use jackfruit::jackfruit_chip;
 pub mod banana;
 use banana::banana_chip;
 
+pub mod lotus;
+use lotus::lotus_chip;
+
 pub mod sound;
 //use sound::RingBuffer;
 
