@@ -13,6 +13,8 @@ use syn::{Expr, Ident, Type, Visibility};
 
 use std::collections::HashMap;
 
+use proc_macro2::TokenTree;
+
 struct ChipInfo {
   name: String,
   instruction_width: u8,
@@ -21,6 +23,12 @@ struct ChipInfo {
   instructions: Instructions,
   raw: Vec<syn::Item>,
   if_copy: bool,
+}
+
+impl Default for ChipInfo {
+  fn default() -> Self {
+    ChipInfo { name: "default_chip".to_string(), instruction_width: 8, memories: vec!(), pipeline: Pipeline { pipelines: vec!() }, instructions: Instructions { instructions: vec!() }, raw: vec!(), if_copy: true, }
+  }
 }
 
 #[derive(PartialEq,Eq)]
@@ -267,8 +275,6 @@ fn rationalise(ty: syn::Type) -> (syn::Type, u32, bool, Option<(String, syn::Typ
   }
 }
 
-
-
 impl Parse for BitPattern {
   fn parse(input: ParseStream) -> Result<Self> {
     let mut pat: Vec<PatBit> = vec!();
@@ -406,6 +412,28 @@ impl Parse for ChipInfo {
       input.parse::<H2>()?;
       let section = input.parse::<Ident>()?;
       match section.to_string().as_str() {
+        "Prelude" => {
+          // We skip until the next ##, or the end of the stream; the Prelude should already be pulled out and used to preprocess the ParseStream before parsing ChipInfo
+          input.step(|cursor| {
+            let mut rest = *cursor;
+            while let Some((tt, next)) = rest.token_tree() {
+              match &tt {
+                TokenTree::Punct(punct) if punct.as_char() == '#' => {
+                  if let Some((tt2, next2)) = next.token_tree() {
+                    match &tt2 {
+                      TokenTree::Punct(punct) if punct.as_char() == '#' => {
+                        return Ok(((), rest));
+                      },
+                      _ => rest = next2,
+                    };
+                  };
+                },
+                _ => rest = next,
+              }
+            };
+            Ok(((), rest))
+          });
+        },
         "Dis" => {
           input.parse::<Token![/]>()?;
           let section_continued = input.parse::<Ident>()?.to_string();
@@ -456,9 +484,9 @@ impl Parse for ChipInfo {
         section_name => {
           return Err(syn::Error::new_spanned(section, format!("Unexpected section name; got {}, expected Pipeline, Instructions, Memory, Dis/Assembler, Structs, or Misc.", section_name)));
         },
-      }
+      };
     }
-    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap(), raw: raw, if_copy: if_copy })
+    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap(), raw: raw, if_copy: if_copy, })
   }
 }
 
@@ -473,6 +501,16 @@ fn mkFieldPat(name: String, binding: String) -> syn::FieldPat {
   }
 }
 
+#[derive(Debug)]
+struct Splices {
+  splices: HashMap<syn::Ident, TokenStream>,
+}
+
+impl Parse for Splices {
+  fn parse(input: ParseStream) -> Result<Self> {
+    Ok(Splices { splices: HashMap::new() })
+  }
+}
 
 #[proc_macro]
 pub fn define_chip(input: TokenStream) -> TokenStream {
@@ -506,6 +544,9 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     }
   }
 
+  let input_prelude = input.clone();
+  let splices = syn::parse::<Splices>(input_prelude);
+  print!("Splices: {:#?}", splices);
   let chip_info: ChipInfo = syn::parse(input).unwrap();
   let mod_name = format_ident!("{}", chip_info.name.clone());
   let instruction_seq: syn::punctuated::Punctuated<syn::Variant, Token![,]> = chip_info.instructions.instructions.iter().map(|instr| {
