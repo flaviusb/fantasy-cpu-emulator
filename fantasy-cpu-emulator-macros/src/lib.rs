@@ -3,7 +3,7 @@ extern crate syn;
 #[macro_use] extern crate quote;
 extern crate proc_macro2;
 
-use proc_macro::TokenStream;
+use proc_macro::{TokenStream, TokenTree};
 use quote::quote;
 use quote::ToTokens;
 use syn::{parse, Attribute, PathSegment, Result, Token};
@@ -13,7 +13,8 @@ use syn::{Expr, Ident, Type, Visibility};
 
 use std::collections::HashMap;
 
-use proc_macro2::TokenTree;
+use proc_macro2::TokenTree as TokenTree2;
+use proc_macro2::TokenStream as TokenStream2;
 
 struct ChipInfo {
   name: String,
@@ -418,10 +419,10 @@ impl Parse for ChipInfo {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
               match &tt {
-                TokenTree::Punct(punct) if punct.as_char() == '#' => {
+                TokenTree2::Punct(punct) if punct.as_char() == '#' => {
                   if let Some((tt2, next2)) = next.token_tree() {
                     match &tt2 {
-                      TokenTree::Punct(punct) if punct.as_char() == '#' => {
+                      TokenTree2::Punct(punct) if punct.as_char() == '#' => {
                         return Ok(((), rest));
                       },
                       _ => rest = next2,
@@ -501,14 +502,103 @@ fn mkFieldPat(name: String, binding: String) -> syn::FieldPat {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 struct Splices {
-  splices: HashMap<syn::Ident, TokenStream>,
+  splices: HashMap<String, TokenStream2>,
 }
 
 impl Parse for Splices {
   fn parse(input: ParseStream) -> Result<Self> {
-    Ok(Splices { splices: HashMap::new() })
+    input.parse::<Token![#]>()?;
+    input.parse::<Ident>()?;
+    let mut splices: HashMap<String, TokenStream2> = HashMap::new();
+    syn::custom_punctuation!(H2, ##);
+    syn::custom_punctuation!(OPEN, #@);
+    syn::custom_punctuation!(CLOSE, @#);
+    while(input.peek(H2) && !input.is_empty()) {
+      input.parse::<H2>()?;
+      let section = input.parse::<Ident>()?;
+      match section.to_string().as_str() {
+        "Prelude" => {
+          while(!input.peek(H2) && !input.is_empty()) {
+            let key = input.parse::<Ident>()?.to_string();
+            input.parse::<Token![=]>()?;
+            input.parse::<OPEN>()?;
+            let mut value: Vec<TokenTree2> = vec!();
+            input.step(|cursor| {
+              let mut rest = *cursor;
+              while let Some((tt, next)) = rest.token_tree() {
+                match &tt {
+                  TokenTree2::Punct(punct) if punct.as_char() == '@' => {
+                    if let Some((tt2, next2)) = next.token_tree() {
+                      match &tt2 {
+                        TokenTree2::Punct(punct2) if punct2.as_char() == '#' => {
+                          return Ok(((), rest));
+                        },
+                        x => {
+                          value.push(TokenTree2::Punct(punct.clone()));
+                          value.push(x.clone());
+                          rest = next2
+                        },
+                      };
+                    };
+                  },
+                  x => {
+                    value.push(x.clone());
+                    rest = next
+                  },
+                }
+              };
+              Ok(((), rest))
+            });
+            input.parse::<CLOSE>();
+            splices.insert(key, core::iter::FromIterator::<TokenTree2>::from_iter(value.clone().into_iter()));
+          }
+        },
+        _ => {
+          // Skip until the end of the section
+          input.step(|cursor| {
+            let mut rest = *cursor;
+            while let Some((tt, next)) = rest.token_tree() {
+              match &tt {
+                TokenTree2::Punct(punct) if punct.as_char() == '#' => {
+                  if let Some((tt2, next2)) = next.token_tree() {
+                    match &tt2 {
+                      TokenTree2::Punct(punct) if punct.as_char() == '#' => {
+                        return Ok(((), rest));
+                      },
+                      _ => rest = next2,
+                    };
+                  };
+                },
+                _ => rest = next,
+              }
+            };
+            Ok(((), rest))
+          });
+        },
+      }
+    };
+    return Ok(Splices { splices: splices });
+  }
+}
+
+struct Fatuous {
+  fat: TokenStream2,
+}
+
+impl Parse for Fatuous {
+  fn parse(input: ParseStream) -> Result<Self> {
+    let mut fat = TokenStream2::new();
+    input.step(|cursor| {
+      let mut rest = *cursor;
+      while let Some((tt, next)) = rest.token_tree() {
+        fat.extend(TokenStream2::from(tt).into_iter());
+        rest = next;
+      }
+      Ok(((), rest))
+    });
+    Ok(Fatuous { fat: fat })
   }
 }
 
@@ -544,10 +634,55 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     }
   }
 
-  let input_prelude = input.clone();
-  let splices = syn::parse::<Splices>(input_prelude);
-  print!("Splices: {:#?}", splices);
-  let chip_info: ChipInfo = syn::parse(input).unwrap();
+  let input_chip    = syn::parse::<Fatuous>(input.clone()).unwrap().fat;
+  let input_splices = input.clone();
+  let splices = syn::parse::<Splices>(input_splices).unwrap().splices;
+  let mut spliced_input_parts = TokenStream2::new();
+  fn process_chip(tokens: TokenStream2, splices: HashMap<String, TokenStream2>) -> TokenStream2 {
+    let mut output: TokenStream2 = TokenStream2::new();
+    let mut hash: Option<TokenTree2> = None;
+    for token in tokens.into_iter() {
+      match &token {
+        TokenTree2::Punct(punct) if punct.as_char() == '#' => {
+          if let Some(h) = hash {
+            output.extend(TokenStream2::from(h).into_iter());
+          }
+          hash = Some(TokenTree2::Punct(punct.clone()));
+        },
+        TokenTree2::Ident(ident) => {
+          if let Some(h) = hash {
+            if let Some(value) = splices.get(&ident.to_string()) {
+              output.extend(value.clone().into_iter());
+            } else {
+              output.extend(TokenStream2::from(h).into_iter());
+              output.extend(TokenStream2::from(TokenTree2::Ident(ident.clone())).into_iter());
+            }
+            hash = None;
+          } else {
+            output.extend(TokenStream2::from(TokenTree2::Ident(ident.clone())).into_iter());
+          }
+        },
+        TokenTree2::Group(g) => {
+          if let Some(h) = hash {
+            output.extend(TokenStream2::from(h).into_iter());
+          }
+          hash = None;
+          let delimiter = g.delimiter();
+          output.extend(TokenStream2::from(TokenTree2::Group(proc_macro2::Group::new(delimiter, process_chip(g.clone().stream(), splices.clone()))))); //, splices.clone()).into_iter());
+        },
+        x => {
+          if let Some(h) = hash {
+            output.extend(TokenStream2::from(h).into_iter());
+          }
+          hash = None;
+          output.extend(TokenStream2::from(x.clone()).into_iter());
+        },
+      }
+    }
+    return output;
+  }
+  spliced_input_parts = process_chip(input_chip, splices);
+  let chip_info: ChipInfo = syn::parse2(spliced_input_parts).unwrap();
   let mod_name = format_ident!("{}", chip_info.name.clone());
   let instruction_seq: syn::punctuated::Punctuated<syn::Variant, Token![,]> = chip_info.instructions.instructions.iter().map(|instr| {
     let name = quote::format_ident!("{}", instr.name);
