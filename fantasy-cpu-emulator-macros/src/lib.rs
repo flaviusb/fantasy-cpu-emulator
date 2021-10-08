@@ -365,7 +365,7 @@ impl Parse for Memory {
             x => panic!(format!("Expected bit, got {}.", x)),
           };
         };
-        return Ok(Memory { name: name, kind: MemoryType::Scratch(ScratchMemory {word_size: word_size.unwrap(), address_size: address_size.unwrap(), words: words.unwrap() }) });
+        return Ok(Memory { name: name, kind: MemoryType::Scratch(ScratchMemory {word_size: word_size.expect("Expected word_size, got None"), address_size: address_size.expect("Expected address_size, got None"), words: words.expect("Expected number of words, got None") }) });
       },
       "register" | "Register" => {
         let mut registers: Vec<RegisterMemory> = vec!();
@@ -425,8 +425,12 @@ impl Parse for ChipInfo {
                       TokenTree2::Punct(punct) if punct.as_char() == '#' => {
                         return Ok(((), rest));
                       },
-                      _ => rest = next2,
+                      x => {
+                        rest = next2;
+                      },
                     };
+                  } else {
+                    rest = next;
                   };
                 },
                 _ => rest = next,
@@ -487,7 +491,7 @@ impl Parse for ChipInfo {
         },
       };
     }
-    Ok(ChipInfo { name:name, instruction_width: instruction_width.unwrap(), memories: memories, pipeline: pipeline.unwrap(), instructions: instructions.unwrap(), raw: raw, if_copy: if_copy, })
+    Ok(ChipInfo { name:name, instruction_width: instruction_width.expect("Expected instruction_width, got None"), memories: memories, pipeline: pipeline.expect("Expected pipeline, got None"), instructions: instructions.expect("Expected instructions, got None"), raw: raw, if_copy: if_copy, })
   }
 }
 
@@ -636,14 +640,14 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
 
   let input_chip    = syn::parse::<Fatuous>(input.clone()).unwrap().fat;
   let input_splices = input.clone();
-  let splices = syn::parse::<Splices>(input_splices).unwrap().splices;
+  let splices = syn::parse::<Splices>(input_splices).expect("Splices not parsed.").splices;
   let mut spliced_input_parts = TokenStream2::new();
   fn process_chip(tokens: TokenStream2, splices: HashMap<String, TokenStream2>) -> TokenStream2 {
     let mut output: TokenStream2 = TokenStream2::new();
     let mut hash: Option<TokenTree2> = None;
     for token in tokens.into_iter() {
       match &token {
-        TokenTree2::Punct(punct) if punct.as_char() == '#' => {
+        TokenTree2::Punct(punct) if punct.as_char() == '$' => {
           if let Some(h) = hash {
             output.extend(TokenStream2::from(h).into_iter());
           }
@@ -682,7 +686,7 @@ pub fn define_chip(input: TokenStream) -> TokenStream {
     return output;
   }
   spliced_input_parts = process_chip(input_chip, splices);
-  let chip_info: ChipInfo = syn::parse2(spliced_input_parts).unwrap();
+  let chip_info: ChipInfo = syn::parse2(spliced_input_parts).expect("chip_info not parsed");
   let mod_name = format_ident!("{}", chip_info.name.clone());
   let instruction_seq: syn::punctuated::Punctuated<syn::Variant, Token![,]> = chip_info.instructions.instructions.iter().map(|instr| {
     let name = quote::format_ident!("{}", instr.name);

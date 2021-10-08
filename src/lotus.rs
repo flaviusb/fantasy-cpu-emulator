@@ -44,7 +44,7 @@ define_chip! {
   ## Instructions
 
   // Format 0
-  Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, "Nop."
+  $Nop,          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0, "Nop."
   Sleep,        0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1, "Sleep until woken."
   Halt,         0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0, "Halt."
   // Format 1-full
@@ -54,4 +54,9 @@ define_chip! {
   BankSwitch_i, 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 1 a:[u; 8], "Bank Switch Indirect."
   // Format 1-imm
   BankSwitch_d, 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 segment:[u; 4] bank:[u; 4], "Bank Switch Direct."
+
+  ## Prelude
+
+  Nop = #@ Nop @#
+
 }
